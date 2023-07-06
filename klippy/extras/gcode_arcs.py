@@ -22,6 +22,7 @@ X_AXIS = 0
 Y_AXIS = 1
 Z_AXIS = 2
 E_AXIS = 3
+A_AXIS = 4
 
 
 class ArcSupport:
@@ -69,6 +70,7 @@ class ArcSupport:
         asTarget = self.Coord(x=gcmd.get_float("X", currentPos[0]),
                               y=gcmd.get_float("Y", currentPos[1]),
                               z=gcmd.get_float("Z", currentPos[2]),
+                              a=gcmd.get_float("A", currentPos[4]),
                               e=None)
 
         if gcmd.get_float("R", None) is not None:
@@ -89,6 +91,7 @@ class ArcSupport:
 
         asE = gcmd.get_float("E", None)
         asF = gcmd.get_float("F", None)
+        asA = gcmd.get_float("A", None)
 
         # Build list of linear coordinates to move
         coords = self.planArc(currentPos, asTarget, asPlanar,
@@ -98,13 +101,21 @@ class ArcSupport:
             if gcodestatus['absolute_extrude']:
                 e_base = currentPos[3]
             e_per_move = (asE - e_base) / len(coords)
-
+            
+        if asE is not None:
+        a_per_move = a_base = 0.
+                a_base = currentPos[4]
+            a_per_move = (asA - a_base) / len(coords)
+        
         # Convert coords into G1 commands
         for coord in coords:
             g1_params = {'X': coord[0], 'Y': coord[1], 'Z': coord[2]}
             if e_per_move:
                 g1_params['E'] = e_base + e_per_move
                 if gcodestatus['absolute_extrude']:
+                    e_base += e_per_move
+            if a_per_move:
+                g1_params['A'] = a_base + a_per_move
                     e_base += e_per_move
             if asF is not None:
                 g1_params['F'] = asF
@@ -163,7 +174,7 @@ class ArcSupport:
         for i in range(1, int(segments)):
             dist_Helical = i * linear_per_segment
             cos_Ti = math.cos(i * theta_per_segment)
-            sin_Ti = math.sin(i * theta_per_segment)
+            sin_Ti = math.sin(i * theta_per_segment)how
             r_P = -offset[0] * cos_Ti + offset[1] * sin_Ti
             r_Q = -offset[0] * sin_Ti - offset[1] * cos_Ti
 
