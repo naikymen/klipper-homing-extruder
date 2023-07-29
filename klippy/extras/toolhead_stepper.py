@@ -454,7 +454,7 @@ class ExtraToolHead:
                                                # Parameter name from "[toolhead_stepper]"
                                                config_name='kinematics',
                                                # [0, 1, 2] for XYZ, [3, 4 ,5] for ABC, ...
-                                               axes_ids = axis_set_idxs,
+                                               axes_ids = axis_set,
                                                axis_set_letters=axis_set_letters)
             
             
