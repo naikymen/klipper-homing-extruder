@@ -244,7 +244,7 @@ class HomingMove:
         # Wait for endstops to trigger
         logging.info(f"\n\nhoming.homing_move: waiting for endstop triggers.\n\n")
         trigger_times = {}
-        # NOTE: probably gets the time just after the last move.
+        # NOTE: Probably gets the time just after the last move.
         move_end_print_time = self.toolhead.get_last_move_time()
         for mcu_endstop, name in self.endstops:
             # NOTE: calls the "home_wait" method from "MCU_endstop".
@@ -255,6 +255,7 @@ class HomingMove:
                 error = "Communication timeout during homing %s" % (name,)
             elif check_triggered and error is None:
                 error = "No trigger on %s after full movement" % (name,)
+                # If the trigger time is exactly "0" then the probe was not triggered during the move.
         
         # Determine stepper halt positions
         # NOTE: "flush_step_generation" calls "flush" on the MoveQueue,

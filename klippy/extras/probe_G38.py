@@ -343,10 +343,19 @@ class ProbeG38:
                 # NOTE: log the error as usual if it is was not a timeout error.
                 raise self.printer.command_error(reason)
         
+        # The toolhead's position was set to haltpos in "homing.py" after probing.
+        haltpos = toolhead.get_position()
+        status_prefix = "probe trigger"
+        if haltpos == epos:
+            # If haltpos and trigpos are equal, then no probe was triggered during the move.
+            status_prefix = "probe ended without trigger"
+        
+        logging.info("\n\n" + f"probe_g38 probe ended with status: {status_prefix}" + "\n\n")
+
         if toolhead.axis_count == 3:
-            self.gcode.respond_info("probe trigger at x=%.3f y=%.3f z=%.3f e=%.3f" % tuple(epos))
+            self.gcode.respond_info(status_prefix + " at x=%.3f y=%.3f z=%.3f e=%.3f" % tuple(epos))
         elif toolhead.axis_count == 6:
-            self.gcode.respond_info("probe trigger at x=%.3f y=%.3f z=%.3f a=%.3f b=%.3f c=%.3f e=%.3f"
+            self.gcode.respond_info(status_prefix + " at x=%.3f y=%.3f z=%.3f a=%.3f b=%.3f c=%.3f e=%.3f"
                                     % tuple(epos))
         else:
             raise self.printer.command_error(f"Can't respond with info for toolhead.axis_count={toolhead.axis_count}")
