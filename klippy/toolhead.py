@@ -528,8 +528,8 @@ class ToolHead:
             # Create XYZ kinematics class, and its XYZ trapq (iterative solver).
             self.kin, self.trapq = self.setup_kinematics(config=config, 
                                                          config_name='kinematics',
-                                                         axis_set_letters="XYZ",
-                                                         axes_ids = [0, 1, 2])
+                                                         axes_ids=[0, 1, 2],
+                                                         axis_set_letters="XYZ")
             # Save the kinematics to the dict.
             self.kinematics["XYZ"] = self.kin
         else:
@@ -559,7 +559,7 @@ class ToolHead:
 
         Args:
             config (_type_): Klipper configuration object.
-            axes_ids (list): List of integers spevifying which of the "toolhead position" elements correspond to the axes of the new kinematic.
+            axes_ids (list): List of integers specifying which of the "toolhead position" elements correspond to the axes of the new kinematic. Examples: [0, 1, 2] for XYZ, or [3, 4 ,5] for ABC.
             config_name (str, optional): Name of the kinematics setting in the config. Defaults to 'kinematics'.
             axis_set_letters (str, optional): Letters identifying each of the three axes in the set. Defaults to 'XYZ'.
 

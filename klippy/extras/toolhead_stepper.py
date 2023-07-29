@@ -439,11 +439,14 @@ class ExtraToolHead:
         """
         
         for set_idx, axis_set in enumerate(self.axis_sets):
+
+            # Example "axis_set"s: 
+            #   [0, 1, 2], [3, 4], [3, 4, 5], etc.
             
-            # axis_set_letters examples: ["XYZ"], ["AB"], ...
+            # Example "axis_set_letters": "XYZ", "AB", ...
             axis_set_letters = " ".join([self.axis_letters[i] for i in axis_set])
             
-            # axis_set_idxs examples: [0,1,2], [0, 1], ...
+            # Example "axis_set_idxs": [0, 1, 2], [0, 1], ...
             axis_set_idxs = [i % 3 for i in axis_set]
             
             # Create XYZ kinematics class, and its XYZ trapq (iterative solver).
@@ -487,7 +490,7 @@ class ExtraToolHead:
 
         # TODO: Support other kinematics is due. Error out for now.
         if kin_name not in self.supported_kinematics:
-            msg = f"Error loading kinematics '{kin_name}'. Currently supported kinematics: {self.supported_kinematics}"
+            msg = f"ExtraToolHead: Error loading kinematics '{kin_name}'. Currently supported kinematics: {self.supported_kinematics}"
             logging.exception(msg)
             raise config.error(msg)
         
@@ -507,7 +510,7 @@ class ExtraToolHead:
         except self.printer.lookup_object('pins').error as e:
             raise
         except:
-            msg = "Error loading kinematics '%s'" % (kin_name,)
+            msg = "ExtraToolHead: Error loading kinematics '%s'" % (kin_name,)
             logging.exception(msg)
             raise config.error(msg)
         
@@ -849,8 +852,8 @@ class ExtraToolHead:
             if print_time != self.print_time:
                 self.idle_flush_print_time = self.print_time
         except:
-            logging.exception("Exception in flush_handler")
-            self.printer.invoke_shutdown("Exception in flush_handler")
+            logging.exception("ExtraToolHead: Exception in flush_handler.")
+            self.printer.invoke_shutdown("ExtraToolHead: Exception in flush_handler.")
         return self.reactor.NEVER
     
     # Movement commands
