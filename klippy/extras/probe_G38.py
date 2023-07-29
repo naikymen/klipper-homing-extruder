@@ -332,7 +332,7 @@ class ProbeG38:
             #       can be ignored. Else, the error should be logged with
             #       the "command_error" method, as always.
             if "Timeout during endstop homing" in reason:
-                reason += HINT_TIMEOUT
+                reason += probe.HINT_TIMEOUT
                 if error_out:
                     # NOTE: log the error as usual if it was requested.
                     raise self.printer.command_error(reason)
