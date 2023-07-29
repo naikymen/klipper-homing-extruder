@@ -8,6 +8,8 @@ import os, re, logging, collections, shlex
 class CommandError(Exception):
     pass
 
+# WARNING:  In the klipper-for-cnc fork, the extruder axis is always in the last position.
+#           Here it is placed in the fourth position (which is only also the last in the XYZ 3-axis setup).
 Coord = collections.namedtuple('Coord', ('x', 'y', 'z', 'e', 'a', 'b', 'c'), 
                                defaults = (None,None,None,None,None,None,None))
 
