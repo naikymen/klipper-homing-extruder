@@ -125,6 +125,14 @@ class ProbeG38multi(probe_G38.ProbeG38):
         # Get the extruder name.
         toolhead = self.printer.lookup_object('toolhead')
         extruder_name = toolhead.extruder.name
+
+        # If no extruder is configured, the name will be a None value,
+        # reflecting that the current extruder object is a "Dummy" object.
+        if extruder_name is None:
+            # In that case, the default probe will be the first one that
+            # was configured.
+            self.gcode.respond_info(f"probe_G38_multi: No extruder found with name '{toolhead.extruder.name}'. G38 will use the first configured probe, with name: {self.probe_name}")
+            extruder_name = self.probe_name
         
         # Look for the active probe object, by the extruder name.
         # This will raise an error if no match is found (see "klippy.py").
