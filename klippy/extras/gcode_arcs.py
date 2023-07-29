@@ -27,14 +27,28 @@ E_AXIS = 3
 class ArcSupport:
 
     def __init__(self, config):
+        """Support for gcode arc (G2/G3) commands.
+        [gcode_arcs]
+        #resolution: 1.0
+        #   An arc will be split into segments. Each segment's length will
+        #   equal the resolution in mm set above. Lower values will produce a
+        #   finer arc, but also more work for your machine. Arcs smaller than
+        #   the configured value will become straight lines. The default is
+        #   1mm.
+        """
         self.printer = config.get_printer()
         self.mm_per_arc_segment = config.getfloat('resolution', 1., above=0.0)
 
         self.gcode_move = self.printer.load_object(config, 'gcode_move')
         self.gcode = self.printer.lookup_object('gcode')
+        
+        # Arc Move Clockwise.
         self.gcode.register_command("G2", self.cmd_G2)
+        
+        # Arc Move Counter-clockwise.
         self.gcode.register_command("G3", self.cmd_G3)
-
+        
+        # Arc Plane Select: G17 (XY plane), G18 (XZ plane), G19 (YZ plane).
         self.gcode.register_command("G17", self.cmd_G17)
         self.gcode.register_command("G18", self.cmd_G18)
         self.gcode.register_command("G19", self.cmd_G19)
@@ -45,18 +59,23 @@ class ArcSupport:
         self.plane = ARC_PLANE_X_Y
 
     def cmd_G2(self, gcmd):
+        """Arc Move Clockwise: G2 [X<pos>] [Y<pos>] [Z<pos>] [E<pos>] [F<speed>] I<value> J<value>|I<value> K<value>|J<value> K<value>"""
         self._cmd_inner(gcmd, True)
 
     def cmd_G3(self, gcmd):
+        """Arc Move Counter-clockwise: G3 [X<pos>] [Y<pos>] [Z<pos>] [E<pos>] [F<speed>] I<value> J<value>|I<value> K<value>|J<value> K<value>"""
         self._cmd_inner(gcmd, False)
 
     def cmd_G17(self, gcmd):
+        """Arc Plane Select: G17 (XY plane)"""
         self.plane = ARC_PLANE_X_Y
 
     def cmd_G18(self, gcmd):
+        """Arc Plane Select: G18 (XZ plane)"""
         self.plane = ARC_PLANE_X_Z
 
     def cmd_G19(self, gcmd):
+        """Arc Plane Select: G19 (YZ plane)"""
         self.plane = ARC_PLANE_Y_Z
 
     def _cmd_inner(self, gcmd, clockwise):
