@@ -41,6 +41,7 @@ This fork implements:
         - Multi-probe: `MULTIPROBE2 PROBE_NAME=myprobe A=-20 B=10 F=2` (same as regular `MULTIPROBE`).
         - And so on …
     - Configuration: add ABC kinematics to `[printer]` and the corresponding `[stepper_abc]` sections (details below).
+        - Note: you must use `cartesian_abc` instead of `cartesian` at your `[printer]` section.
     - Limitations: needs testing on longer GCODE programs. The 3 stepper sections must be configured, _partial_ extra axis is not implemented yet (i.e. XYZ+AB). Extra steppers not tested (i.e. `stepper_a1`).
     - Module incompatibilites: probably many. Tested with `virtual_sdcard`, `pause_resume`, and `force_move`. Non-cartesian kinematics for the XYZ axes not tested.
 - Homing on the steppers of `[extruder]`s.
@@ -81,7 +82,17 @@ This fork implements:
 
 Not-so-minor modifications to Klippy's core were made to accommodate these features. 
 
+### Pull requests
+
 Pull requests are very welcome over here, and will be merged quickly.
+
+### Buy me a beer
+
+Show your love for this project through Liberapay: https://liberapay.com/naikymen <3
+
+Also consider donating to upstream Klipper and its appendages.
+
+### Chat
 
 Let's chat over here: https://klipper.discourse.group/t/klipper-forks-for-cnc/5698
 
@@ -102,7 +113,7 @@ First configure extra ABC kinematics: [printer.cfg](./config/configs-pipetting-b
 ```yaml
 [printer]
 # Regular pritner configuration.
-kinematics: cartesian
+kinematics: cartesian_abc
 # Units: mm/s and mm/s^2:
 max_velocity: 5000    # F120000
 max_z_velocity: 250   # F30000
