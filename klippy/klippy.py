@@ -192,12 +192,17 @@ class Printer:
         config = pconfig.read_main_config()
         if self.bglogger is not None:
             pconfig.log_config(config)
-        # Create printer components
+        # Create printer components for "pins" and the "mcu".
         for m in [pins, mcu]:
             m.add_printer_objects(config)
+        # Load the objects for (every) section in the config file.
         for section_config in config.get_prefix_sections(''):
-            self.load_object(config, section_config.get_name(), None)
+            section_name = section_config.get_name()
+            # logging.info(f"Loading section with name: {section_name}") 
+            self.load_object(config, section_name, None)
+        # Add the "toolhead" to the printer objects. 
         for m in [toolhead]:
+            # Note that this happens after the modules from the config.
             m.add_printer_objects(config)
         # Validate that there are no undefined parameters in the config file
         pconfig.check_unused_options(config)

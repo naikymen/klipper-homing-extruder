@@ -383,7 +383,7 @@ class ToolHead:
     Example config:
     
     [printer]
-    kinematics: cartesian
+    kinematics: cartesian_abc
     axis: XYZ  # Optional: XYZ or XYZABC
     kinematics_abc: cartesian_abc # Optional
     max_velocity: 5000
@@ -560,13 +560,14 @@ class ToolHead:
         Args:
             config (_type_): Klipper configuration object.
             axes_ids (list): List of integers specifying which of the "toolhead position" elements correspond to the axes of the new kinematic. Examples: [0, 1, 2] for XYZ, or [3, 4 ,5] for ABC.
-            config_name (str, optional): Name of the kinematics setting in the config. Defaults to 'kinematics'.
+            config_name (str, optional): Name of the kinematics setting in the config. The configured value must be one of the supported kinematics (e.g. "cartesian_abc"). Defaults to 'kinematics'.
             axis_set_letters (str, optional): Letters identifying each of the three axes in the set. Defaults to 'XYZ'.
 
         Returns:
             CartKinematics: Kinematics object.
         """
-        # NOTE: get the "kinematics" type from "[printer]".
+        # NOTE: Get the "kinematics" type from the "[printer]" config section.
+        # NOTE: No default value is passed, forcing the user to make a choice.
         kin_name = config.get(config_name)
 
         # TODO: Support other kinematics is due. Error out for now.

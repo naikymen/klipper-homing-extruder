@@ -22,7 +22,14 @@ class ArcSupport:
         #   equal the resolution in mm set above. Lower values will produce a
         #   finer arc, but also more work for your machine. Arcs smaller than
         #   the configured value will become straight lines. The default is
-        #   1mm.
+        #   1 mm.
+
+        To start adding support for multi-axis, this reads the 'axis' parameter
+        of the '[printer]' section in the config file:
+        [printer]
+        # ...
+        axis: XYZ  # Optional: XYZ or XYZABC
+        # ...
         """
         self.printer = config.get_printer()
         self.mm_per_arc_segment = config.getfloat('resolution', 1., above=0.0)
@@ -31,8 +38,9 @@ class ArcSupport:
         self.gcode = self.printer.lookup_object('gcode')
         
         # Get amount of axes
-        toolhead = self.printer.lookup_object('toolhead')
-        self.axis_count = toolhead.axis_count
+        # NOTE: Amount of non-extruder axes: XYZ=3, XYZABC=6.
+        self.axis_names = config.getsection("printer").get('axis', 'XYZ')  # "XYZ" / "XYZABC"
+        self.axis_count = len(self.axis_names)
 
         # Enum
         self.ARC_PLANE_X_Y = 0

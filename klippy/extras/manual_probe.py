@@ -41,6 +41,7 @@ class ManualProbe:
                 self.cmd_Z_OFFSET_APPLY_ENDSTOP,
                 desc=self.cmd_Z_OFFSET_APPLY_ENDSTOP_help)
         # Linear delta printers with A,B,C towers
+        # NOTE: No default value is passed to get(), forcing the user to make a choice.
         if 'delta' == config.getsection('printer').get('kinematics'):
             self.gcode.register_command(
                 'Z_OFFSET_APPLY_ENDSTOP',
