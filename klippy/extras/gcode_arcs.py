@@ -53,6 +53,8 @@ class ArcSupport:
         self.gcode.register_command("G18", self.cmd_G18)
         self.gcode.register_command("G19", self.cmd_G19)
 
+        # This is a named tuple with elements: ('x', 'y', 'z', 'e', 'a', 'b', 'c')
+        # Values default to None.
         self.Coord = self.gcode.Coord
 
         # backwards compatibility, prior implementation only supported XY
@@ -79,6 +81,7 @@ class ArcSupport:
         self.plane = ARC_PLANE_Y_Z
 
     def _cmd_inner(self, gcmd, clockwise):
+        # The arc's path is planned in absolute coordinates.
         gcodestatus = self.gcode_move.get_status()
         if not gcodestatus['absolute_coordinates']:
             raise gcmd.error("G2/G3 does not support relative move mode")
@@ -110,8 +113,12 @@ class ArcSupport:
         asF = gcmd.get_float("F", None)
 
         # Build list of linear coordinates to move
-        coords = self.planArc(currentPos, asTarget, asPlanar,
-                              clockwise, *axes)
+        coords = self.planArc(currentPos=currentPos, 
+                              targetPos=asTarget, 
+                              offset=asPlanar,
+                              clockwise=clockwise,
+                              # Expand the axes list to pass its values to: "alpha_axis", "beta_axis", "helical_axis"
+                              *axes)
         e_per_move = e_base = 0.
         if asE is not None:
             if gcodestatus['absolute_extrude']:
@@ -188,6 +195,8 @@ class ArcSupport:
 
             # Coord doesn't support index assignment, create list
             c = [None, None, None, None]
+            # Coord is a named tuple with elements: ('x', 'y', 'z', 'e', 'a', 'b', 'c')
+            # Its values default to None.
             c[alpha_axis] = center_P + r_P
             c[beta_axis] = center_Q + r_Q
             c[helical_axis] = currentPos[helical_axis] + dist_Helical
