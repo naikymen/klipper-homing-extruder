@@ -400,7 +400,7 @@ class ToolHead:
         self.axis_count = len(self.axis_names)
         
         # TODO: support more kinematics.
-        self.supported_kinematics = ["cartesian", "cartesian_abc", "none"]
+        self.supported_kinematics = ["cartesian_abc", "none"]  # Removed "cartesian" until I fix it.
         
         logging.info(f"\n\nToolHead: starting setup with axes: {self.axis_names}\n\n")
         
