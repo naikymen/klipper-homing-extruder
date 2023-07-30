@@ -6,7 +6,7 @@
 
 class NoneKinematics:
     def __init__(self, toolhead, config, trapq):
-        self.axes_minmax = toolhead.Coord(0., 0., 0., 0.)
+        self.axes_minmax = toolhead.Coord(0., 0., 0., e=0.)
         self.axis = [None, None, None]
         self.trapq = trapq
     def get_steppers(self):

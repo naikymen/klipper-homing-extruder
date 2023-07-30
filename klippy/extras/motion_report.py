@@ -324,7 +324,8 @@ class PrinterMotionReport:
                 evelocity = velocity
         # Report status
         self.last_status = dict(self.last_status)
-        self.last_status['live_position'] = toolhead.Coord(*(xyzpos + epos))
+        # TODO: have this part handle ABC axes.
+        self.last_status['live_position'] = toolhead.Coord(*xyzpos, e=epos)
         self.last_status['live_velocity'] = xyzvelocity
         self.last_status['live_extruder_velocity'] = evelocity
         return self.last_status
