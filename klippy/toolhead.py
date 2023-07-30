@@ -595,11 +595,16 @@ class ToolHead:
         # NOTE: No default value is passed, forcing the user to make a choice.
         kin_name = config.get(config_name)
 
+        if kin_name == "none":
+            return None, None
+
         # TODO: Support other kinematics is due. Error out for now.
         if kin_name not in self.supported_kinematics:
             msg = f"Error loading kinematics '{kin_name}'. Currently supported kinematics: {self.supported_kinematics}"
             logging.exception(msg)
             raise config.error(msg)
+        else:
+            logging.exception(f"Loading kinematics {kin_name}")
         
         # Create a Trapq for the kinematics
         ffi_main, ffi_lib = chelper.get_ffi()
