@@ -48,7 +48,9 @@ class CartKinematicsABC(CartKinematics):
 
         # Just to check
         if len(self.axis_config) != self.axis_count:
-            raise Exception(f"CartKinematicsABC: The amount of axis indexes in '{self.axis_config}' does not match the count of axis names '{self.axis_names}'.")
+            msg = f"CartKinematicsABC: The amount of axis indexes in '{self.axis_config}'"
+            msg += f" does not match the count of axis names '{self.axis_names}'."
+            raise Exception(msg)
         
         # Full set of axes, forced to length 3. Starting at the first axis index (e.g. 0 for [0,1,2]),
         # and ending at +3 (e.g. 3 for [0,1,2]).
@@ -57,46 +59,58 @@ class CartKinematicsABC(CartKinematics):
         
         # Total axis count from the toolhead.
         self.toolhead_axis_count = toolhead.axis_count  # len(self.axis_names)
-
-        logging.info(f"\n\nCartKinematicsABC: starting setup with axes '{self.axis_names}' and indexes '{self.axis}'\n\n")
         
-        # Get the "trapq" object.
+        # Report
+        msg = f"\n\nCartKinematicsABC: starting setup with axes '{self.axis_names}'"
+        msg += f", indexes '{self.axis_config}', and expanded indexes '{self.axis}'\n\n"
+        logging.info(msg)
+        
         if trapq is None:
+            # Get the "trapq" object associated to the specified axes.
             self.trapq = toolhead.get_trapq(axes=self.axis_names)
         else:
+            # Else use the provided trapq object.
             self.trapq = trapq
         
         # Setup axis rails. DISABLED!
         # self.dual_carriage_axis = None
         # self.dual_carriage_rails = []
         
-        # NOTE: a "PrinterRail" is setup by LookupMultiRail, per each 
+        # NOTE: A "PrinterRail" is setup by LookupMultiRail, per each 
         #       of the three axis, including their corresponding endstops.
+        #       We do this by looking for "[stepper_?]" sections in the config.
         # NOTE: The "self.rails" list contains "PrinterRail" objects, which
         #       can have one or more stepper (PrinterStepper/MCU_stepper) objects.
         self.rails = [stepper.LookupMultiRail(config.getsection('stepper_' + n))
                       for n in self.axis_names.lower()]
         
-        # NOTE: this must be "xyz" and not "abc", see "cartesian_stepper_alloc" in C code.
-        # for rail, axis in zip(self.rails, self.axis_names.lower()):
-        # TODO: Check if it needs to be length 3 every time.
-        xyz_axis_names = "xyz"[:len(self.axis_names)]  # Can be "xyz", "xy", or "x".
+        # NOTE: "xyz_axis_names" must always be "xyz" and not "abc", 
+        #       see "cartesian_stepper_alloc" in C code.
+        # TODO: Check if it also needs to be length 3 every time.
+        #       The call to "setup_itersolve" for a manual stepper
+        #       is only done once, to setup an "x" axis.
+        # NOTE: Can be "xyz", "xy", or just "x". This does not need to correspond
+        #       to the actual axis names, the intuition is to mimic the manual stepper
+        #       setup, starting with just "x", and then allow more axes to be setup.
+        xyz_axis_names = "xyz"[:len(self.axis_names)]
         for rail, axis in zip(self.rails, xyz_axis_names):
             rail.setup_itersolve('cartesian_stepper_alloc', axis.encode())
         
+        # NOTE: Iterates over "self.rails" to get all the stepper objects.
         for s in self.get_steppers():
+            # NOTE: Each "s" stepper is an "MCU_stepper" object.
             s.set_trapq(self.trapq)
-            # TODO: check if this "generator" should be appended to 
-            #       the "self.step_generators" list in the toolhead,
-            #       or to the list in the new TrapQ.
-            #       Using the toolhead for now.
-            #       This object is used by "toolhead._update_move_time".
+            # NOTE: This object is used by "toolhead._update_move_time".
             toolhead.register_step_generator(s.generate_steps)
+            # TODO: Check if this "generator" should be appended to 
+            #       the "self.step_generators" list in the toolhead,
+            #       or to the list in the new TrapQ...
+            #       Using the toolhead for now.
         
         # Register a handler for turning off the steppers.
         self.printer.register_event_handler("stepper_enable:motor_off",
                                             self._motor_off)
-        # Setup boundary checks
+        
         # NOTE: Returns max_velocity and max_accel from the toolhead's config.
         #       Used below as default values.
         max_velocity, max_accel = toolhead.get_max_velocity()
@@ -104,16 +118,19 @@ class CartKinematicsABC(CartKinematics):
                                               above=0., maxval=max_velocity)
         self.max_z_accel = config.getfloat('max_z_accel', max_accel,
                                            above=0., maxval=max_accel)
-        ranges = [r.get_range() for r in self.rails]
+        
         # TODO: Should this have length < 3 if less axes are configured, or not?
-        #       CartKinematics methods like "get_status" will expect length-3 limits.
+        #       CartKinematics methods like "get_status" will expect length 3 limits.
         #       That one has been replaced here, there may be others though I think
         #       I've got all of the (internal) calls covered.
         # self.limits = [(1.0, -1.0)] * 3
         self.limits = [(1.0, -1.0)] * len(self.axis_config)
         
-        # TODO: check if this works with ABC axes, it will result in 
-        #       Coord(x=0.0, y=0.0, z=0.0, e=0.0, a=None, b=None, c=None)
+        # Setup boundary checks.
+        ranges = [r.get_range() for r in self.rails]
+        # TODO: Check that this works with ABC axes, it will result in 
+        #       "Coord(x=1.0, y=0.0, z=0.0, e=0.0, a=None, b=None, c=None)"
+        #       "Coord(x=-1.0, y=-1.0, z=-1.0, e=0.0, a=None, b=None, c=None)"
         self.axes_min = toolhead.Coord(*[r[0] for r in ranges], e=0.)
         self.axes_max = toolhead.Coord(*[r[1] for r in ranges], e=0.)
         
@@ -179,7 +196,7 @@ class CartKinematicsABC(CartKinematics):
         else:
             forcepos[axis] += 1.5 * (position_max - hi.position_endstop)
         # Perform homing
-        logging.info(f"\n\ncartesian_abc._home_axis: homing  axis={axis} with forcepos={forcepos} and homepos={homepos}\n\n")
+        logging.info(f"\n\ncartesian_abc._home_axis: homing axis={axis} with forcepos={forcepos} and homepos={homepos}\n\n")
         homing_state.home_rails([rail], forcepos, homepos)
     
     def home(self, homing_state):

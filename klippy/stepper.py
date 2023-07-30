@@ -445,13 +445,13 @@ class PrinterRail:
         return list(self.steppers)
     
     def get_endstops(self):
-        # NOTE: as commented below, endstops in this list are 
+        # NOTE: As commented below, endstops in this list are 
         #       likely instances of the MCU_endstop class.
         return list(self.endstops)
     
     def add_extra_stepper(self, config):
-        # NOTE: use the PrinterStepper function to instantiate
-        #       a new MCU_stepper class, then register it in several modules,
+        # NOTE: Use the PrinterStepper function to instantiate
+        #       a new "MCU_stepper" class, then register it in several modules,
         #       and return it here.
         stepper = PrinterStepper(config, self.stepper_units_in_radians)
         self.steppers.append(stepper)

@@ -415,6 +415,8 @@ class ToolHead:
             #       see "mcu.py".
             self.can_pause = False
         self.move_queue = MoveQueue(self)
+        # Initiate position as a null vector, of lengh equal to the
+        # axis count, plus 1 for the extruder axis.
         self.commanded_pos = [0.0 for i in range(self.axis_count + 1)]
         self.printer.register_event_handler("klippy:shutdown",
                                             self._handle_shutdown)
