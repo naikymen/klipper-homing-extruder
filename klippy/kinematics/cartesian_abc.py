@@ -119,12 +119,8 @@ class CartKinematicsABC(CartKinematics):
         self.max_z_accel = config.getfloat('max_z_accel', max_accel,
                                            above=0., maxval=max_accel)
         
-        # TODO: Should this have length < 3 if less axes are configured, or not?
-        #       CartKinematics methods like "get_status" will expect length 3 limits.
-        #       That one has been replaced here, there may be others though I think
-        #       I've got all of the (internal) calls covered.
-        # self.limits = [(1.0, -1.0)] * 3
-        self.limits = [(1.0, -1.0)] * len(self.axis_config)
+        # Setup limits.
+        self.reset_limits()
         
         # Setup boundary checks.
         ranges = [r.get_range() for r in self.rails]
@@ -148,6 +144,14 @@ class CartKinematicsABC(CartKinematics):
         #     self.printer.lookup_object('gcode').register_command(
         #         'SET_DUAL_CARRIAGE', self.cmd_SET_DUAL_CARRIAGE,
         #         desc=self.cmd_SET_DUAL_CARRIAGE_help)
+    
+    def reset_limits(self):
+        # TODO: Should this have length < 3 if less axes are configured, or not?
+        #       CartKinematics methods like "get_status" will expect length 3 limits.
+        #       That one has been replaced here, there may be others though I think
+        #       I've got all of the (internal) calls covered.
+        # self.limits = [(1.0, -1.0)] * 3
+        self.limits = [(1.0, -1.0)] * len(self.axis_config)
     
     def get_steppers(self):
         # NOTE: The "self.rails" list contains "PrinterRail" objects, which
@@ -207,7 +211,7 @@ class CartKinematicsABC(CartKinematics):
             self._home_axis(homing_state, axis, self.rails[toolhead.axes_to_xyz(axis)])
     
     def _motor_off(self, print_time):
-        self.limits = [(1.0, -1.0)] * len(self.axis)
+        self.reset_limits()
     
     def _check_endstops(self, move):
         logging.info("\n\n" + f"cartesian_abc._check_endstops: triggered on {self.axis_names}/{self.axis} move.\n\n")
