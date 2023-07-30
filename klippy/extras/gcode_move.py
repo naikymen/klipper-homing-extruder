@@ -233,6 +233,8 @@ class GCodeMove:
             # NOTE: XYZ(ABC) move coordinates.
             for pos, axis in enumerate(list(self.axis_map)[:-1]):
                 if axis in params:
+                    if axis not in self.axis_names:
+                        raise self.printer.command_error(f"G1 error: you must configure the {axis} axis in order to use it.")
                     v = float(params[axis])
                     logging.info(f"\n\nGCodeMove: parsed axis={axis} with value={v}\n\n")
                     if not self.absolute_coord:

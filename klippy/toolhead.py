@@ -414,7 +414,7 @@ class ToolHead:
         # NOTE: The value of this attriute must match the one at "gcode_move.py".
         
         # Dictionary to map axes to their indexes in the position vector.
-        self.axis_map = {a: i for i, a in enumerate(list("XYZABC")[:self.min_axes] + ["E"])}
+        self.axis_map = {a: i for i, a in enumerate(list("XYZABCUVW")[:self.min_axes] + ["E"])}
         
         # TODO: support more kinematics.
         self.supported_kinematics = ["cartesian_abc", "none"]  # Removed "cartesian" until I fix it.
@@ -568,6 +568,9 @@ class ToolHead:
             self.kinematics["ABC"] = self.kin_abc
         else:
             self.kin_abc, self.abc_trapq = None, None
+
+        # Save the position indexes for the selected axes.
+        self.axes = xyz_ids + abc_ids
     
     # Load kinematics object
     def setup_kinematics(self, config, axes_ids, config_name='kinematics', axis_set_letters="XYZ"):
@@ -1136,6 +1139,14 @@ class ToolHead:
             newpos (_type_): _description_
             speed (_type_): _description_
         """
+
+        # Check if any unconfigured axes are being moved.
+        moved_axes = [i for i, (sp, ep) in enumerate(zip(self.commanded_pos, newpos)) if sp != ep]
+        unconfigured_axes = list(set(moved_axes).difference(self.axes))
+        if unconfigured_axes:
+            unconfigured_axes_names = "".join( [ list(self.axis_map)[ax] for ax in unconfigured_axes] )
+            raise self.printer.command_error(f"Toolhead move: you must configure the {unconfigured_axes_names} axes ({unconfigured_axes}) in order to use them.")
+
         logging.info(f"\n\ntoolhead.move: moving to newpos={newpos}.\n\n")
         move = Move(toolhead=self, 
                     start_pos=self.commanded_pos,

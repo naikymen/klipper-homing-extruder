@@ -638,9 +638,11 @@ class PrinterHoming:
         toolhead = self.printer.lookup_object(self.toolhead_id)
         # Move to origin
         axes = []
-        for pos, axis in enumerate(list(toolhead.axis_map)[:-1]):
         # for pos, axis in enumerate('XYZ'):
+        for pos, axis in enumerate(list(toolhead.axis_map)[:-1]):
             if gcmd.get(axis, None) is not None:
+                if axis not in toolhead.axis_names:
+                    raise self.printer.command_error(f"Homing error: you must configure the {axis} axis in order to use it.")
                 axes.append(pos)
         if not axes:
             axes = list(range(toolhead.pos_length))[-1]
