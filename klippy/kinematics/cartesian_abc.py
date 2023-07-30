@@ -148,10 +148,11 @@ class CartKinematicsABC(CartKinematics):
     def reset_limits(self):
         # TODO: Should this have length < 3 if less axes are configured, or not?
         #       CartKinematics methods like "get_status" will expect length 3 limits.
-        #       That one has been replaced here, there may be others though I think
-        #       I've got all of the (internal) calls covered.
         # self.limits = [(1.0, -1.0)] * 3
         self.limits = [(1.0, -1.0)] * len(self.axis_config)
+        #       See "get_status" for more details.
+        # NOTE: I've got all of the (internal) calls covered.
+        #       There may be other uses of the "limits" attribute elsewhere.
     
     def get_steppers(self):
         # NOTE: The "self.rails" list contains "PrinterRail" objects, which
@@ -179,6 +180,10 @@ class CartKinematicsABC(CartKinematics):
             rail.set_position(newpos)
             if i in homing_axes:
                 logging.info(f"\n\nCartKinematicsABC: setting limits={rail.get_range()} on stepper: {rail.get_name()}\n\n")
+                # NOTE: Here each limit becomes associated to a certain "rail" (i.e. an axis).
+                #       If the rails were set up as "XYZ" in that order (as per "self.axis_names"),
+                #       the limits will now correspond to them in that same order.
+                # NOTE: This is relevant fot "get_status".
                 self.limits[i] = rail.get_range()
     
     def note_z_not_homed(self):
@@ -217,6 +222,13 @@ class CartKinematicsABC(CartKinematics):
         logging.info("\n\n" + f"cartesian_abc._check_endstops: triggered on {self.axis_names}/{self.axis} move.\n\n")
         end_pos = move.end_pos
         for i, axis in enumerate(self.axis):
+            # TODO: Check if its better to iterate over "self.axis" instead,
+            #       which is forced to lenght 3. For now "self.axis_config"
+            #       seems more reasonable, as it will be the toolhead passing
+            #       the move, and it was the toolhead that specified the axis
+            #       indices for this kinematic during setup in the first place.
+            #       Furthermore, limits are ordered by "self.axis_names", which
+            #       correlates 1:1 with "self.axis_config".
             if (move.axes_d[axis]
                 and (end_pos[axis] < self.limits[i][0]
                      or end_pos[axis] > self.limits[i][1])):
@@ -242,6 +254,8 @@ class CartKinematicsABC(CartKinematics):
         """
         limit_checks = []
         for i, axis in enumerate(self.axis):
+            # TODO: Check if its better to iterate over "self.axis" instead,
+            #       see rationale in favor of "axis_config" above, at "_check_endstops".
             pos = move.end_pos[axis]
             limit_checks.append(pos < self.limits[i][0] or pos > self.limits[i][1])
         if any(limit_checks):
@@ -273,6 +287,9 @@ class CartKinematicsABC(CartKinematics):
     
     def get_status(self, eventtime):
         axes = [a for a, (l, h) in zip(self.axis_names, self.limits) if l <= h]
+        # NOTE: "zip" will iterate until one of the arguments runs out.
+        #       This means that having "XY" axis names is not problematic
+        #       when self.limits is length 3, and viceversa.
         return {
             'homed_axes': "".join(axes),
             'axis_minimum': self.axes_min,
