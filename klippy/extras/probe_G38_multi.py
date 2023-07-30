@@ -131,7 +131,9 @@ class ProbeG38multi(probe_G38.ProbeG38):
         if extruder_name is None:
             # In that case, the default probe will be the first one that
             # was configured.
-            self.gcode.respond_info(f"probe_G38_multi: No extruder found with name '{toolhead.extruder.name}'. G38 will use the first configured probe, with name: {self.probe_name}")
+            msg = f"probe_G38_multi: No extruder found with name '{toolhead.extruder.name}'. "
+            msg += f"G38 will use the first configured probe, with name: {self.probe_name}"
+            self.gcode.respond_info(msg)
             extruder_name = self.probe_name
         
         # Look for the active probe object, by the extruder name.

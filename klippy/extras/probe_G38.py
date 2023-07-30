@@ -346,8 +346,9 @@ class ProbeG38:
         # The toolhead's position was set to haltpos in "homing.py" after probing.
         haltpos = toolhead.get_position()
         status_prefix = "probe trigger"
-        if haltpos == epos:
-            # If haltpos and trigpos are equal, then no probe was triggered during the move.
+        if haltpos == pos:
+            # If "haltpos" and "target pos" are equal, then the move was not interrupted,
+            # and no probe was triggered during the move.
             status_prefix = "probe ended without trigger"
         
         logging.info("\n\n" + f"probe_g38 probe ended with status: {status_prefix}" + "\n\n")
