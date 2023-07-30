@@ -174,7 +174,7 @@ class ExtruderHoming:
         speed = self.homing_info.speed
         
         # NOTE: Use XYZ from the toolhead, and E from the config file + estimation.
-        pos = self.th_orig_pos[:self.toolhead.axis_count] + [self.get_movepos(self.homing_info)]
+        pos = self.th_orig_pos[:-1] + [self.get_movepos(self.homing_info)]
 
         # Get rail limits
         position_min, position_max = self.rail.get_range()
@@ -186,8 +186,8 @@ class ExtruderHoming:
             e_startpos = position_min
         else:
             e_startpos = position_max
-        startpos = self.th_orig_pos[:self.toolhead.axis_count] + [e_startpos]
-        self.toolhead.set_position(startpos, homing_axes=(self.toolhead.axis_count, ))
+        startpos = self.th_orig_pos[:-1] + [e_startpos]
+        self.toolhead.set_position(startpos, homing_axes=(self.toolhead.pos_length, ))
 
         # NOTE: flag homing start
         self.homing = True
@@ -305,10 +305,10 @@ class ExtruderHoming:
         
         # NOTE: Get the initial position from all non-E elements in the toolhead's 
         #       position by using its "axis count" (this can be 3 or 6).
-        startpos = th_orig_pos[:toolhead.axis_count] + [e_startpos]
+        startpos = th_orig_pos[:-1] + [e_startpos]
         # NOTE: Set the initial position, also permitting limit checks of the extruder axis
         #       to pass (see "homing_axes" argument), which otherwise block homing moves too.
-        toolhead.set_position(startpos, homing_axes)
+        toolhead.set_position(startpos, homing_axes=tuple(len(startpos)-1))
 
         # NOTE: flag homing start
         self.homing = True

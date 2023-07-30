@@ -52,10 +52,19 @@ class CartKinematicsABC(CartKinematics):
             msg += f" does not match the count of axis names '{self.axis_names}'."
             raise Exception(msg)
         
-        # Full set of axes, forced to length 3. Starting at the first axis index (e.g. 0 for [0,1,2]),
-        # and ending at +3 (e.g. 3 for [0,1,2]).
+        # NOTE: Infer the triplet from one of the axes: 1 means XYZ; 2 means ABC.
+        triplet_number = axes_ids[0] // 3
+        # NOTE: Full set of axes, forced to length 3. Starting at the first axis index (e.g. 0 for [0,1,2]),
+        #       and ending at +3 (e.g. 3 for [0,1,2]).
+        # NOTE: This attribute is used to select starting positions from a "move" object (see toolhead.py),
+        #       which requires this list to have length 3 (because trapq_append needs the three components).
         # Example expected result: [0, 1, 2] for XYZ, [3, 4, 5] for ABC, [6, 7, 8] for UVW.
-        self.axis = list(range(self.axis_config[0], self.axis_config[0] + 3))  # Length 3
+        self.axis = list(range(3*triplet_number, 3*triplet_number + 3))  # Length 3
+
+        # Save which axes from the "triplet" will not have steppers configured.
+        self.dummy_axes = list(set(self.axis).difference(self.axis_config))
+        # Get the axis names of these "Dummy axes".
+        self.dummy_axes_names = ["XYZABCUVW"[i] for i in self.dummy_axes]
         
         # Total axis count from the toolhead.
         self.toolhead_axis_count = toolhead.axis_count  # len(self.axis_names)
@@ -170,7 +179,23 @@ class CartKinematicsABC(CartKinematics):
         return [s for rail in rails for s in rail.get_steppers()]
     
     def calc_position(self, stepper_positions):
-        return [stepper_positions[rail.get_name()] for rail in self.rails]
+        # Dummy default position.
+        pos = [0.0 for i in range(3)]
+        # Replace defaults.
+        for i, axis in enumerate(self.axis_config):
+            # e.g.: Get rail "stepper_a", with axis name "A", and axis index "3".
+            # We know that the "axis_config" and "rails" lists match in order
+            # because this is how they were defined during init in this class.
+            rail = self.rails[i]
+            stepper_position = stepper_positions[rail.get_name()]
+            # Axis may be from XYZ, ABC, or higher-indexed triplets.
+            # Get the remainder of the current axis to convert it to an
+            # index between 0 and 2, which can be used to overwrite the
+            # "dummy" position (i.e. 0.0 above).
+            pos[axis % 3] = stepper_position
+
+        # return [stepper_positions[rail.get_name()] for rail in self.rails]
+        return pos.copy()
     
     def set_position(self, newpos, homing_axes):
         logging.info("\n\n" +

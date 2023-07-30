@@ -130,37 +130,37 @@ class ExtruderStepper:
         self.stepper.set_trapq(extruder.get_trapq())
         self.motion_queue = extruder_name
 
-    def check_move_limits(self, move, e_axis=3):
+    def check_move_limits(self, move):
         """ExtruderStepper version of check_move_limits in toolhead.py"""
-        epos = move.end_pos[e_axis]
+        epos = move.end_pos[-1]
 
         if self.can_home:
             # NOTE: Software limit checks, borrowed from "cartesian.py".
             logging.info("\n\n" + f"extruder_stepper.check_move_limits: checking move ending on epos={epos}" + "\n\n")
             if (epos < self.limits[0][0] or epos > self.limits[0][1]):
-                self._check_endstops(move, e_axis)
+                self._check_endstops(move)
         else:
             logging.info("\n\n" + f"extruder_stepper.check_move_limits: E stepper not home-able, skipping check on move ending on epos={epos}" + "\n\n")
         
-    def _check_endstops(self, move, e_axis=3):
+    def _check_endstops(self, move):
         """ExtruderStepper version of _check_endstops in toolhead.py"""
 
         # NOTE: Software limit checks, borrowed from "cartesian.py".
         logging.info("\n\n" + f"extruder_stepper._check_endstops: move limit check triggered.\n\n")
-        end_pos = move.end_pos[e_axis]
+        end_pos = move.end_pos[-1]
         
         # NOTE: Check if the extruder move is out of bounds.
-        if (move.axes_d[e_axis] and (end_pos < self.limits[0][0] or end_pos > self.limits[0][1])):
+        if (move.axes_d[-1] and (end_pos < self.limits[0][0] or end_pos > self.limits[0][1])):
             # NOTE: The move is not allowed, check if this is due to unhomed axis.
             if self.limits[0][0] > self.limits[0][1]:
                 # NOTE: "self.limits" will be "(1.0, -1.0)" when not homed, triggering this.
-                logging.info(f"extruder._check_endstops: Must home extruder axis ({e_axis}) first.")
-                raise move.move_error(f"Must home extruder axis ({e_axis}) first.")
+                logging.info(f"extruder._check_endstops: Must home extruder axis ({len(move.end_pos)}) first.")
+                raise move.move_error(f"Must home extruder axis ({len(move.end_pos)}) first.")
             # NOTE: Else raise a move error without a message.
             raise move.move_error()
         else:
             # NOTE: Everything seems fine.
-            logging.info(f"extruder_stepper._check_endstops: The extruder's move to {end_pos} on axis {e_axis} checks out.")
+            logging.info(f"extruder_stepper._check_endstops: The extruder's move to {end_pos} on axis {len(move.end_pos)} checks out.")
     
     def set_position(self, newpos_e, homing_e=False, print_time=None):
         """ExtruderStepper version of set_position in toolhead.py"""
@@ -360,9 +360,9 @@ class PrinterExtruder:
     def stats(self, eventtime):
         return self.heater.stats(eventtime)
     
-    def check_move(self, move, e_axis=3):
+    def check_move(self, move):
         # NOTE: get the extruder component of the move (ratio of total displacement).
-        axis_r = move.axes_r[e_axis]
+        axis_r = move.axes_r[-1]
         
         # NOTE: error-out if the extruder is not ready (not hot enough).
         if not self.heater.can_extrude:
@@ -373,16 +373,16 @@ class PrinterExtruder:
         # NOTE: other extrusion checks.
         if (not move.axes_d[0] and not move.axes_d[1]) or axis_r < 0.:
             # Extrude only move (or retraction move) - limit accel and velocity
-            if abs(move.axes_d[e_axis]) > self.max_e_dist:
+            if abs(move.axes_d[-1]) > self.max_e_dist:
                 raise self.printer.command_error(
                     "Extrude only move too long (%.3fmm vs %.3fmm)\n"
                     "See the 'max_extrude_only_distance' config"
-                    " option for details" % (move.axes_d[e_axis], self.max_e_dist))
+                    " option for details" % (move.axes_d[-1], self.max_e_dist))
             inv_extrude_r = 1. / abs(axis_r)
             move.limit_speed(self.max_e_velocity * inv_extrude_r,
                              self.max_e_accel * inv_extrude_r)
         elif axis_r > self.max_extrude_ratio:
-            if move.axes_d[e_axis] <= self.nozzle_diameter * self.max_extrude_ratio:
+            if move.axes_d[-1] <= self.nozzle_diameter * self.max_extrude_ratio:
                 # Permit extrusion if amount extruded is tiny
                 return
             area = axis_r * self.filament_area
@@ -394,7 +394,7 @@ class PrinterExtruder:
                 % (area, self.max_extrude_ratio * self.filament_area))
         
         # NOTE: implement software limit checks.
-        self.extruder_stepper.check_move_limits(move, e_axis)
+        self.extruder_stepper.check_move_limits(move)
 
     def set_position(self, newpos_e, homing_axes=(), print_time=None):
         """PrinterExtruder version of set_position in toolhead.py

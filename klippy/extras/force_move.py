@@ -137,7 +137,7 @@ class ForceMove:
 
         # Iterate over the names and indices of the axes in the main toolhead.
         homing_axes = []
-        for axis_idx, axis_name in enumerate(toolhead.axis_names + "E"):
+        for axis_idx, axis_name in enumerate(list(toolhead.axis_map)):
             # Try to find a value.
             value = gcmd.get_float(axis_name, None)
             # If found, then the axis can be considered homed.
@@ -150,6 +150,8 @@ class ForceMove:
         toolhead.set_position(curpos, homing_axes=tuple(homing_axes))
 
         # Set position on extra toolheads
+        # TODO: Must update all of this to accound for the new position vector 
+        #       (i.e. always full length, using -1 for the extruder).
         for th_name in list(toolhead.extra_toolheads):
             th = toolhead.extra_toolheads[th_name]
             th.get_last_move_time()

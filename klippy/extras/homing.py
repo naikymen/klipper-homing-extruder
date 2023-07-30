@@ -77,8 +77,8 @@ class HomingMove:
     def _calc_endstop_rate(self, mcu_endstop, movepos, speed):  # movepos  = [0.0, 0.0, 0.0, -110]
         startpos = self.toolhead.get_position()                 # startpos = [0.0, 0.0, 0.0, 0.0]
         axes_d = [mp - sp for mp, sp in zip(movepos, startpos)]
-        move_d = math.sqrt(sum([d*d for d in axes_d[:self.toolhead.axis_count]]))   # 150.0
-        move_t = move_d / speed                                                     # 150.0 / 25.0 = 6.0
+        move_d = math.sqrt(sum([d*d for d in axes_d[:-1]]))     # 150.0
+        move_t = move_d / speed                                 # 150.0 / 25.0 = 6.0
         max_steps = max([(abs(s.calc_position_from_coord(startpos)
                               - s.calc_position_from_coord(movepos))
                           / s.get_step_dist())
@@ -147,7 +147,7 @@ class HomingMove:
         if extruder.name is not None:
             result += [kin_spos[extruder.name]]
         else:
-            result += [thpos[self.toolhead.axis_count]]
+            result += [thpos[-1]]
                 
         # NOTE: Log output for reference, example:
         #       calc_toolhead_pos output=[-1.420625, 0.0, 0.0, 0.0]
@@ -457,9 +457,8 @@ class Homing:
         # self.printer.send_event("homing:home_rails_begin", self, rails)
         
         # Alter kinematics class to think printer is at forcepos
-        axis_count = self.toolhead.axis_count
         # NOTE: Get the axis IDs of each non-null axis in forcepos.
-        homing_axes = [axis for axis in range(axis_count) if forcepos[axis] is not None]
+        homing_axes = [axis for axis in range(self.toolhead.pos_length-1) if forcepos[axis] is not None]
         # NOTE: fill each "None" position values with the 
         #       current position (from toolhead.get_position)
         #       of the corresponding axis.
@@ -491,7 +490,7 @@ class Homing:
             axes_d = [hp - sp for hp, sp in zip(homepos, startpos)]
             
             # TODO: consider using all coordinates, not just XYZ(ABC).
-            move_d = math.sqrt(sum([d*d for d in axes_d[:axis_count]]))
+            move_d = math.sqrt(sum([d*d for d in axes_d[:-1]]))
             
             retract_r = min(1., hi.retract_dist / move_d)
             retractpos = [hp - ad * retract_r
@@ -639,12 +638,12 @@ class PrinterHoming:
         toolhead = self.printer.lookup_object(self.toolhead_id)
         # Move to origin
         axes = []
-        for pos, axis in enumerate(toolhead.axis_names):
+        for pos, axis in enumerate(list(toolhead.axis_map)[:-1]):
         # for pos, axis in enumerate('XYZ'):
             if gcmd.get(axis, None) is not None:
                 axes.append(pos)
         if not axes:
-            axes = list(range(toolhead.axis_count))
+            axes = list(range(toolhead.pos_length))[-1]
             # axes = [0, 1, 2]
         
         logging.info(f"\n\nPrinterHoming.cmd_G28: homing axes={axes}\n\n")

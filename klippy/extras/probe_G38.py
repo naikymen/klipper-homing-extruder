@@ -227,7 +227,7 @@ class ProbeG38:
         params = gcmd.get_command_parameters()
         try:
             # Parse XYZ(ABC) axis move coordinates.
-            for pos, axis in enumerate(toolhead.axis_names):
+            for pos, axis in enumerate(list(toolhead.axis_map)[:-1]):
                 if axis in params:
                     v = float(params[axis])
                     if not self.absolute_coord:
@@ -359,7 +359,10 @@ class ProbeG38:
             self.gcode.respond_info(status_prefix + " at x=%.3f y=%.3f z=%.3f a=%.3f b=%.3f c=%.3f e=%.3f"
                                     % tuple(epos))
         else:
-            raise self.printer.command_error(f"Can't respond with info for toolhead.axis_count={toolhead.axis_count}")
+            # Get Current Position
+            msg = " ".join([k.lower() + "=" + "%.3f" % haltpos[v] for k, v in toolhead.axis_map.items() ])
+            self.gcode.respond_info(status_prefix + " at " + msg)
+            # raise self.printer.command_error(f"Can't respond with info for toolhead.axis_count={toolhead.axis_count}")
         
         # TODO: find out why it only returns the fourth (extruder) position.
         # TODO: update this to work with 6-axis klippy.

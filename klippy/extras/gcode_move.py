@@ -6,6 +6,7 @@
 import logging, klippy
 from gcode import GCodeDispatch
 from extras.homing import Homing
+from copy import copy
 
 class GCodeMove:
     """Main GCodeMove class.
@@ -35,6 +36,25 @@ class GCodeMove:
         main_config = config.getsection("printer")
         self.axis_names = main_config.get('axis', 'XYZ')
         self.axis_count = len(self.axis_names)
+
+        # Axis sets and names for them are partially hardcoded all around.
+        self.axis_triplets = ["XYZ", "ABC", "UVW"]
+        # Find the minimum amount of axes needed for the requested axis triplets.
+        # For example, 1 triplet would be required for "XYZ" or "ABC", but 2
+        # triplets are needed for any mixing of those (e.g. "XYZAB").
+        self.min_axes = 3 * sum([ 1 for axset in self.axis_triplets if set(self.axis_names).intersection(axset) ])
+
+        # Length for the position vector, matching the required axis,
+        # plus 1 for the extruder axis (even if it is a dummy one).
+        self.pos_length = self.min_axes + 1
+        # self.pos_length = self.axis_count + 1
+        # NOTE: The value of this attriute must match the one at "toolhead.py".
+
+        # Dictionary to map axes to their indexes in the position vector.
+        # Examples: 
+        #   {'X': 0, 'Y': 1, 'Z': 2, 'A': 3, 'B': 4, 'C': 5, 'E': 6}
+        #   {'X': 0, 'Y': 1, 'Z': 2, 'E': 3}
+        self.axis_map = {a: i for i, a in enumerate(list("".join(self.axis_triplets))[:self.min_axes] + ["E"])}
         
         logging.info(f"\n\nGCodeMove: starting setup with axes: {self.axis_names}\n\n")
         
@@ -80,9 +100,11 @@ class GCodeMove:
         
         # G-Code coordinate manipulation
         self.absolute_coord = self.absolute_extrude = True
-        self.base_position = [0.0 for i in range(self.axis_count + 1)]
-        self.last_position = [0.0 for i in range(self.axis_count + 1)]
-        self.homing_position = [0.0 for i in range(self.axis_count + 1)]
+        # NOTE: The length of these vectors must match the 
+        #       "commanded_pos" attribute in "toolhead.py".
+        self.base_position = [0.0 for i in range(self.pos_length)]
+        self.last_position = self.base_position.copy()
+        self.homing_position = self.base_position.copy()
         self.speed = 25.
         # TODO: This 1/60 by default, because "feedrates" 
         #       provided by the "F" GCODE are in "mm/min",
@@ -97,7 +119,7 @@ class GCodeMove:
         # NOTE: Default function for "position_with_transform", 
         #       overriden later on by "_handle_ready" (which sets
         #       toolhead.get_position) or "set_move_transform".
-        self.position_with_transform = (lambda: [0.0 for i in range(self.axis_count + 1)])
+        self.position_with_transform = (lambda: [0.0 for i in range(self.pos_length)])
     
     def _handle_ready(self):
         self.is_printer_ready = True
@@ -164,7 +186,7 @@ class GCodeMove:
     
     def _get_gcode_position(self):
         p = [lp - bp for lp, bp in zip(self.last_position, self.base_position)]
-        p[self.axis_count] /= self.extrude_factor
+        p[-1] /= self.extrude_factor
         return p
     
     def _get_gcode_speed(self):
@@ -208,7 +230,7 @@ class GCodeMove:
         logging.info(f"\n\nGCodeMove: G1 starting setup with params={params}.\n\n")
         try:
             # NOTE: XYZ(ABC) move coordinates.
-            for pos, axis in enumerate(self.axis_names):
+            for pos, axis in enumerate(list(self.axis_map)[:-1]):
                 if axis in params:
                     v = float(params[axis])
                     logging.info(f"\n\nGCodeMove: parsed axis={axis} with value={v}\n\n")
@@ -224,10 +246,10 @@ class GCodeMove:
                 logging.info(f"\n\nGCodeMove: parsed axis=E with value={v}\n\n")
                 if not self.absolute_coord or not self.absolute_extrude:
                     # value relative to position of last move
-                    self.last_position[self.axis_count] += v
+                    self.last_position[-1] += v
                 else:
                     # value relative to base coordinate position
-                    self.last_position[self.axis_count] = v + self.base_position[self.axis_count]
+                    self.last_position[-1] = v + self.base_position[-1]
             # NOTE: move feedrate.
             if 'F' in params:
                 gcode_speed = float(params['F'])
@@ -268,22 +290,25 @@ class GCodeMove:
     
     def cmd_G92(self, gcmd):
         # Set position
-        offsets = [ gcmd.get_float(a, None) for a in self.axis_names + 'E' ]
+        ax_names = list(self.axis_map)
+        offsets = [ gcmd.get_float(a, None) for a in ax_names ]
         for i, offset in enumerate(offsets):
             if offset is not None:
-                if i == self.axis_count:
+                if i == len(offsets) - 1:
+                    # NOTE: The last item holds info from the extruder.
                     offset *= self.extrude_factor
-                self.base_position[i] = self.last_position[i] - offset
-        if offsets == [None, None, None, None]:
+                # NOTE: Use the axis mapping to know what position element
+                #       corresponds to particular given axis.
+                pos_idx = self.axis_map[ax_names[i]]
+                self.base_position[pos_idx] = self.last_position[pos_idx] - offset
+        if not any(offsets):
             self.base_position = list(self.last_position)
     
     def cmd_M114(self, gcmd):
         # Get Current Position
-        p = self._get_gcode_position()
-        if self.axis_count == 3:
-            gcmd.respond_raw("X:%.3f Y:%.3f Z:%.3f E:%.3f" % tuple(p))
-        elif self.axis_count == 6:
-            gcmd.respond_raw("X:%.3f Y:%.3f Z:%.3f A:%.3f B:%.3f C:%.3f E:%.3f" % tuple(p))
+        pos = self._get_gcode_position()
+        msg = " ".join([k.upper() + ":" + "%.3f" % pos[v] for k, v in self.axis_map.items() ])
+        gcmd.respond_raw(copy(msg))
     
     def cmd_M220(self, gcmd):
         # Set speed factor override percentage
@@ -300,15 +325,16 @@ class GCodeMove:
     def cmd_M221(self, gcmd):
         # Set extrude factor override percentage
         new_extrude_factor = gcmd.get_float('S', 100., above=0.) / 100.
-        last_e_pos = self.last_position[self.axis_count]
-        e_value = (last_e_pos - self.base_position[self.axis_count]) / self.extrude_factor
-        self.base_position[self.axis_count] = last_e_pos - e_value * new_extrude_factor
+        last_e_pos = self.last_position[-1]
+        e_value = (last_e_pos - self.base_position[-1]) / self.extrude_factor
+        self.base_position[-1] = last_e_pos - e_value * new_extrude_factor
         self.extrude_factor = new_extrude_factor
     
     cmd_SET_GCODE_OFFSET_help = "Set a virtual offset to g-code positions"
     def cmd_SET_GCODE_OFFSET(self, gcmd):
-        move_delta = [0.0 for i in range(self.axis_count + 1)]
-        for pos, axis in enumerate(self.axis_names + 'E'):
+        move_delta = [0.0 for i in range(self.pos_length)]
+        for pos, axis in enumerate(list(self.axis_map)):
+            # Enumerate all axis names (e.g. X, Y, Z, A, B, C, E).
             offset = gcmd.get_float(axis, None)
             if offset is None:
                 offset = gcmd.get_float(axis + '_ADJUST', None)
@@ -354,12 +380,12 @@ class GCodeMove:
         self.speed_factor = state['speed_factor']
         self.extrude_factor = state['extrude_factor']
         # Restore the relative E position
-        e_diff = self.last_position[self.axis_count] - state['last_position'][self.axis_count]
-        self.base_position[self.axis_count] += e_diff
+        e_diff = self.last_position[-1] - state['last_position'][-1]
+        self.base_position[-1] += e_diff
         # Move the toolhead back if requested
         if gcmd.get_int('MOVE', 0):
             speed = gcmd.get_float('MOVE_SPEED', self.speed, above=0.)
-            self.last_position[:self.axis_count] = state['last_position'][:self.axis_count]
+            self.last_position[:-1] = state['last_position'][:-1]
             self.move_with_transform(self.last_position, speed)
     
     cmd_GET_POSITION_help = (

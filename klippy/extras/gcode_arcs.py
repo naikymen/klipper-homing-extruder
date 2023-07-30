@@ -41,6 +41,17 @@ class ArcSupport:
         # NOTE: Amount of non-extruder axes: XYZ=3, XYZABC=6.
         self.axis_names = config.getsection("printer").get('axis', 'XYZ')  # "XYZ" / "XYZABC"
         self.axis_count = len(self.axis_names)
+        # Axis sets and names for them are partially hardcoded all around.
+        self.axis_triplets = ["XYZ", "ABC", "UVW"]
+        # Find the minimum amount of axes needed for the requested axis triplets.
+        # For example, 1 triplet would be required for "XYZ" or "ABC", but 2
+        # triplets are needed for any mixing of those (e.g. "XYZAB").
+        self.min_axes = 3 * sum([ 1 for axset in self.axis_triplets if set(self.axis_names).intersection(axset) ])
+        # Length for the position vector, matching the required axis,
+        # plus 1 for the extruder axis (even if it is a dummy one).
+        self.pos_length = self.min_axes + 1
+        # self.pos_length = self.axis_count + 1
+        # NOTE: The value of this attriute must match the one at "toolhead.py".
 
         # Enum
         self.ARC_PLANE_X_Y = 0
@@ -51,7 +62,7 @@ class ArcSupport:
         self.X_AXIS = 0
         self.Y_AXIS = 1
         self.Z_AXIS = 2
-        self.E_AXIS = self.axis_count  # NOTE: Not used below.
+        self.E_AXIS = self.min_axes  # NOTE: Not used below.
         
         # Arc Move Clockwise.
         self.gcode.register_command("G2", self.cmd_G2)
@@ -207,9 +218,9 @@ class ArcSupport:
             # Coord is a named tuple with elements: ('x', 'y', 'z', 'e', 'a', 'b', 'c')
             # Its values default to None.
             # Coord doesn't support index assignment, create list.
-            # NOTE: Using "axis_count" (e.g. can be "3" for an XYZ setup). Adding 1 to consider the Extruder axis. 
+            # NOTE: Using "pos_length" (e.g. can be "3" for an XYZE setup).
             #       This achieves backwardcompatibility.
-            c = [None for i in range(self.axis_count + 1)]
+            c = [None for i in range(self.pos_length)]
             c[alpha_axis] = center_P + r_P
             c[beta_axis] = center_Q + r_Q
             c[helical_axis] = currentPos[helical_axis] + dist_Helical

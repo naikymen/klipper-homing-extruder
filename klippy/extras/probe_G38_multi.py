@@ -202,7 +202,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
         params = gcmd.get_command_parameters()
         try:
             # Parse axis coordinates
-            for pos, axis in enumerate(toolhead.axis_names):
+            for pos, axis in enumerate(list(toolhead.axis_map)[:-1]):
                 if axis in params:
                     v = float(params[axis])
                     if not absolute_coord:
@@ -299,7 +299,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
 
         # NOTE: parse coordinates from a "MUX" command.
         try:
-            for pos, axis in enumerate(toolhead.axis_names):
+            for pos, axis in enumerate(list(toolhead.axis_map)[:-1]):
                 # NOTE: "pos" is 0, 1, 2.
                 # NOTE: "axis" is X, Y, Z.
                 coord = gcmd.get_float(axis, None)

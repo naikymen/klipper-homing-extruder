@@ -47,14 +47,15 @@ class Move:
         
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
         self.axis_names = toolhead.axis_names
-        self.axis_count = len(self.axis_names)
+        self.axis_count = toolhead.axis_count
 
         # NOTE: Compute the components of the displacement vector.
         #       The last component is now the extruder.
-        self.axes_d = axes_d = [end_pos[i] - start_pos[i] for i in range(self.axis_count + 1)]
+        self.axes_d = axes_d = [ep - sp for ep, sp in zip(end_pos, start_pos)]
         
-        # NOTE: compute the euclidean magnitude of the XYZ(ABC) displacement vector.
-        self.move_d = move_d = math.sqrt(sum([d*d for d in axes_d[:self.axis_count]]))
+        # NOTE: Compute the euclidean magnitude of the XYZ(ABC) displacement vector,
+        #       excluding the extruder.
+        self.move_d = move_d = math.sqrt(sum([d*d for d in axes_d[:-1]]))
         
         logging.info(f"\n\nMove: setup with axes_d={axes_d} and move_d={move_d}.\n\n")
         
@@ -63,16 +64,16 @@ class Move:
             # Extrude only move
             
             # NOTE: the main axes wont move, thus end=stop.
-            self.end_pos = tuple([start_pos[i] for i in range(self.axis_count)])
+            self.end_pos = tuple([sp for sp in start_pos[:-1]])
             # NOTE: the extruder will move.
-            self.end_pos = self.end_pos + (end_pos[self.axis_count],)
+            self.end_pos = self.end_pos + (end_pos[-1],)
             
             # NOTE: set axis displacement to zero.
-            for i in range(self.axis_count):
+            for i in range(len(axes_d[:-1])):
                 axes_d[i] = 0.
             
             # NOTE: set move distance to the extruder's displacement.
-            self.move_d = move_d = abs(axes_d[self.axis_count])
+            self.move_d = move_d = abs(axes_d[-1])
             
             # NOTE: set more stuff (?)
             inv_move_d = 0.
@@ -131,7 +132,7 @@ class Move:
         # Find max velocity using "approximated centripetal velocity"
         axes_r = self.axes_r
         prev_axes_r = prev_move.axes_r
-        junction_cos_theta = -sum([ axes_r[0] * prev_axes_r[0] for i in range(self.axis_count) ])
+        junction_cos_theta = -sum([ axes_r[0] * prev_axes_r[0] for i in range(len(axes_r[:-1])) ])  # NOTE: axes_r comes from axes_d, used is to replace "self.axis_count".
         if junction_cos_theta > 0.999999:
             return
         junction_cos_theta = max(junction_cos_theta, -0.999999)
@@ -396,8 +397,24 @@ class ToolHead:
     """
     def __init__(self, config):
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
-        self.axis_names = config.get('axis', 'XYZ')  # "XYZ" / "XYZABC"
+        self.axis_names = config.get('axis', 'XYZ')  # e.g. "XYZ", "XYZABC", "XY".
         self.axis_count = len(self.axis_names)
+        
+        # Axis sets and names for them are partially hardcoded all around.
+        self.axis_triplets = ["XYZ", "ABC", "UVW"]
+        # Find the minimum amount of axes needed for the requested axis triplets.
+        # For example, 1 triplet would be required for "XYZ" or "ABC", but 2
+        # triplets are needed for any mixing of those (e.g. "XYZAB").
+        self.min_axes = 3 * sum([ 1 for axset in self.axis_triplets if set(self.axis_names).intersection(axset) ])
+
+        # Length for the position vector, matching the required axis,
+        # plus 1 for the extruder axis (even if it is a dummy one).
+        self.pos_length = self.min_axes + 1
+        # self.pos_length = self.axis_count + 1
+        # NOTE: The value of this attriute must match the one at "gcode_move.py".
+        
+        # Dictionary to map axes to their indexes in the position vector.
+        self.axis_map = {a: i for i, a in enumerate(list("XYZABC")[:self.min_axes] + ["E"])}
         
         # TODO: support more kinematics.
         self.supported_kinematics = ["cartesian_abc", "none"]  # Removed "cartesian" until I fix it.
@@ -415,9 +432,8 @@ class ToolHead:
             #       see "mcu.py".
             self.can_pause = False
         self.move_queue = MoveQueue(self)
-        # Initiate position as a null vector, of lengh equal to the
-        # axis count, plus 1 for the extruder axis.
-        self.commanded_pos = [0.0 for i in range(self.axis_count + 1)]
+        # Initiate position as a zero vector.
+        self.commanded_pos = [0.0 for i in range(self.pos_length)]
         self.printer.register_event_handler("klippy:shutdown",
                                             self._handle_shutdown)
         
@@ -525,25 +541,29 @@ class ToolHead:
         Args:
             config (_type_): Klipper configuration object.
         """
-        # Setup XYZ axes
-        if "XYZ" in self.axis_names:
+        # Get and setup XYZ axes.
+        xyz_axes = ''.join([ax for ax in self.axis_names if ax in "XYZ"])  # e.g. "XY"
+        xyz_ids = [i for i, ax in enumerate(self.axis_names) if ax in "XYZ"]  # e.g. "[1, 2]"
+        if xyz_axes:
             # Create XYZ kinematics class, and its XYZ trapq (iterative solver).
             self.kin, self.trapq = self.setup_kinematics(config=config, 
                                                          config_name='kinematics',
-                                                         axes_ids=[0, 1, 2],
-                                                         axis_set_letters="XYZ")
+                                                         axes_ids=xyz_ids,
+                                                         axis_set_letters=xyz_axes)
             # Save the kinematics to the dict.
             self.kinematics["XYZ"] = self.kin
         else:
             self.kin, self.trapq = None, None
         
         # Setup ABC axes
-        if "ABC" in self.axis_names:
+        abc_axes = ''.join([ax for ax in self.axis_names if ax in "ABC"])  # e.g. "AB"
+        abc_ids = [i for i, ax in enumerate(self.axis_names) if ax in "ABC"]  # e.g. "[3, 4]"
+        if abc_axes:
             # Create ABC kinematics class, and its ABC trapq (iterative solver).
             self.kin_abc, self.abc_trapq = self.setup_kinematics(config=config, 
                                                                  config_name='kinematics_abc',
-                                                                 axes_ids=[3, 4 ,5],
-                                                                 axis_set_letters="ABC")
+                                                                 axes_ids=abc_ids, # e.g. [3, 4 ,5]
+                                                                 axis_set_letters=abc_axes)
             # Save the kinematics to the dict.
             self.kinematics["ABC"] = self.kin_abc
         else:
@@ -797,7 +817,7 @@ class ToolHead:
                         move.start_v, move.cruise_v, move.accel)
             
             # NOTE: Repeat for the extruder's trapq.
-            if move.axes_d[self.axis_count]:
+            if move.axes_d[-1]:
                 # NOTE: The extruder stepper move is likely synced to the main
                 #       XYZ movement here, by sharing the "next_move_time"
                 #       parameter in the call.
@@ -1032,7 +1052,7 @@ class ToolHead:
         # NOTE: Also set the position of the extruder's "trapq".
         #       Runs "trapq_set_position" and "rail.set_position".
         logging.info("\n\n" + f"toolhead.set_position: setting E trapq pos.\n\n")
-        self.set_position_e(newpos_e=newpos[self.axis_count], homing_axes=homing_axes)
+        self.set_position_e(newpos_e=newpos[-1], homing_axes=homing_axes)
         
         # NOTE: Set the position of the axes "kinematics".
         for axes in list(self.kinematics):
@@ -1147,9 +1167,10 @@ class ToolHead:
             #     self.kin_abc.check_move(move)
             
         # NOTE: Kinematic move checks for E axis.
-        if move.axes_d[self.axis_count]:
-            logging.info("\n\n" + f"toolhead.move: check_move on E move to {move.axes_d[self.axis_count]}.\n\n")
-            self.extruder.check_move(move, e_axis=self.axis_count)
+        if move.axes_d[-1]:
+            logging.info("\n\n" + f"toolhead.move: check_move on E move to {move.axes_d[-1]}.\n\n")
+            # NOTE: The extruder will check the move assuming that the last coordinate is the E axis.
+            self.extruder.check_move(move)
         
         # NOTE: Update "commanded_pos" with the "end_pos"
         #       of the current move command.
@@ -1169,7 +1190,7 @@ class ToolHead:
         # NOTE: get the current (last) position.
         curpos = list(self.commanded_pos)
         
-        # NOTE: overwrite with the move's target postion.
+        # NOTE: Update the current position with the move's target postion.
         for i in range(len(coord)):
             if coord[i] is not None:
                 curpos[i] = coord[i]
@@ -1226,7 +1247,7 @@ class ToolHead:
     
     def set_extruder(self, extruder, extrude_pos):
         self.extruder = extruder
-        self.commanded_pos[self.axis_count] = extrude_pos
+        self.commanded_pos[-1] = extrude_pos
     
     def get_extruder(self):
         return self.extruder
