@@ -287,10 +287,10 @@ class CartKinematicsABC(CartKinematics):
         return
     
     def get_status(self, eventtime):
-        axes = [a for a, (l, h) in zip(self.axis_names, self.limits) if l <= h]
         # NOTE: "zip" will iterate until one of the arguments runs out.
         #       This means that having "XY" axis names is not problematic
         #       when self.limits is length 3, and viceversa.
+        axes = [a for a, (l, h) in zip(self.axis_names.lower(), self.limits) if l <= h]
         return {
             'homed_axes': "".join(axes),
             'axis_minimum': self.axes_min,
