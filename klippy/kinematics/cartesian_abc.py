@@ -146,11 +146,12 @@ class CartKinematicsABC(CartKinematics):
         #         desc=self.cmd_SET_DUAL_CARRIAGE_help)
     
     def reset_limits(self):
+        # self.limits = [(1.0, -1.0)] * len(self.axis_config)
         # TODO: Should this have length < 3 if less axes are configured, or not?
         #       CartKinematics methods like "get_status" will expect length 3 limits.
-        # self.limits = [(1.0, -1.0)] * 3
-        self.limits = [(1.0, -1.0)] * len(self.axis_config)
         #       See "get_status" for more details.
+        # NOTE: Using length 3
+        self.limits = [(1.0, -1.0)] * 3
         # NOTE: I've got all of the (internal) calls covered.
         #       There may be other uses of the "limits" attribute elsewhere.
     
@@ -221,7 +222,7 @@ class CartKinematicsABC(CartKinematics):
     def _check_endstops(self, move):
         logging.info("\n\n" + f"cartesian_abc._check_endstops: triggered on {self.axis_names}/{self.axis} move.\n\n")
         end_pos = move.end_pos
-        for i, axis in enumerate(self.axis):
+        for i, axis in enumerate(self.axis_config):
             # TODO: Check if its better to iterate over "self.axis" instead,
             #       which is forced to lenght 3. For now "self.axis_config"
             #       seems more reasonable, as it will be the toolhead passing
@@ -253,7 +254,7 @@ class CartKinematicsABC(CartKinematics):
             move (tolhead.Move): Instance of the Move class.
         """
         limit_checks = []
-        for i, axis in enumerate(self.axis):
+        for i, axis in enumerate(self.axis_config):
             # TODO: Check if its better to iterate over "self.axis" instead,
             #       see rationale in favor of "axis_config" above, at "_check_endstops".
             pos = move.end_pos[axis]
