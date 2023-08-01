@@ -120,6 +120,8 @@ class Move:
         return self.toolhead.printer.command_error(m)
     
     def calc_junction(self, prev_move):
+        # NOTE: Check if this is an "extruder only" move (i.e. a move not using the 
+        #       main/non-extruder kinematics).
         if not self.is_kinematic_move or not prev_move.is_kinematic_move:
             return
         

@@ -269,6 +269,7 @@ class GCodeMove:
         self.printer.send_event("gcode_move:parsing_move_command", gcmd, params)
         
         # NOTE: this is just a call to "toolhead.move".
+        # logging.info(f'G1 { " ".join([ f"{k}{v}" for k,v in zip(list(self.axis_map), self.last_position) ]) } F{self.speed}; >>>')
         self.move_with_transform(self.last_position, self.speed)
     
     # G-Code coordinate manipulation

@@ -6,7 +6,7 @@
 # Copyright (C) 2011 Camiel Gubbels / Erik van der Zalm
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
-import math
+import math, logging
 
 # Coordinates created by this are converted into G1 commands.
 #
@@ -110,10 +110,13 @@ class ArcSupport:
         currentPos = gcodestatus['gcode_position']
 
         # Parse parameters
-        asTarget = self.Coord(x=gcmd.get_float("X", currentPos[0]),
-                              y=gcmd.get_float("Y", currentPos[1]),
-                              z=gcmd.get_float("Z", currentPos[2]),
-                              e=None)
+        asTarget = self.Coord(
+            x=gcmd.get_float("X", currentPos[0]),
+            y=gcmd.get_float("Y", currentPos[1]),
+            z=gcmd.get_float("Z", currentPos[2]),
+            e=None,
+            a=None
+        )
 
         if gcmd.get_float("R", None) is not None:
             raise gcmd.error("G2/G3 does not support R moves")
@@ -132,20 +135,22 @@ class ArcSupport:
             raise gcmd.error("G2/G3 requires IJ, IK or JK parameters")
 
         asE = gcmd.get_float("E", None)
+        asA = gcmd.get_float("A", None)
         asF = gcmd.get_float("F", None)
 
         # Build list of linear coordinates to move
-        coords = self.planArc(currentPos=currentPos, 
-                              targetPos=asTarget, 
-                              offset=asPlanar,
-                              clockwise=clockwise,
-                              # Expand the axes list to pass its values to: "alpha_axis", "beta_axis", "helical_axis"
-                              *axes)
+        # Expand the axes list to pass its values to: "alpha_axis", "beta_axis", "helical_axis"
+        coords = self.planArc(currentPos, asTarget, asPlanar, clockwise, *axes)
         e_per_move = e_base = 0.
         if asE is not None:
             if gcodestatus['absolute_extrude']:
                 e_base = currentPos[3]
             e_per_move = (asE - e_base) / len(coords)
+        
+        a_per_move = 0.
+        if asA is not None:
+            a_base = currentPos[4]
+            a_per_move = (asA - a_base) / len(coords)
 
         # Convert coords into G1 commands
         for coord in coords:
@@ -154,8 +159,15 @@ class ArcSupport:
                 g1_params['E'] = e_base + e_per_move
                 if gcodestatus['absolute_extrude']:
                     e_base += e_per_move
+            if a_per_move:
+                g1_params['A'] = a_base + a_per_move
+                a_base += a_per_move
             if asF is not None:
                 g1_params['F'] = asF
+            
+            # NOTE: write actual G1 commands to the log.
+            # logging.info( f'G1 { " ".join([f"{k}{v}" for k, v in g1_params.items()]) }; >>> Arc segment with target: {asTarget}' )
+            
             g1_gcmd = self.gcode.create_gcode_command("G1", "G1", g1_params)
             self.gcode_move.cmd_G1(g1_gcmd)
 
@@ -164,7 +176,7 @@ class ArcSupport:
     #
     # The arc is approximated by generating many small linear segments.
     # The length of each segment is configured in MM_PER_ARC_SEGMENT
-    # Arcs smaller then this value, will be a Line only
+    # Arcs smaller than this value will be a Line only
     #
     # alpha and beta axes are the current plane, helical axis is linear travel
     def planArc(self, currentPos, targetPos, offset, clockwise,
@@ -191,10 +203,10 @@ class ArcSupport:
             and currentPos[alpha_axis] == targetPos[alpha_axis]
             and currentPos[beta_axis] == targetPos[beta_axis]):
             # Make a circle if the angular rotation is 0 and the
-            # target is current position
+            # target is the current position
             angular_travel = 2. * math.pi
 
-        # Determine number of segments
+        # Determine the number of segments
         linear_travel = targetPos[helical_axis] - currentPos[helical_axis]
         radius = math.hypot(r_P, r_Q)
         flat_mm = radius * angular_travel
