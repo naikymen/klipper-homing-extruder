@@ -63,6 +63,7 @@ class ArcSupport:
         self.Y_AXIS = 1
         self.Z_AXIS = 2
         self.E_AXIS = self.min_axes  # NOTE: Not used below.
+        self.A_AXIS = 4
         
         # Arc Move Clockwise.
         self.gcode.register_command("G2", self.cmd_G2)
@@ -144,12 +145,12 @@ class ArcSupport:
         e_per_move = e_base = 0.
         if asE is not None:
             if gcodestatus['absolute_extrude']:
-                e_base = currentPos[3]
+                e_base = currentPos[self.E_AXIS]
             e_per_move = (asE - e_base) / len(coords)
         
         a_per_move = 0.
         if asA is not None:
-            a_base = currentPos[4]
+            a_base = currentPos[self.A_AXIS]
             a_per_move = (asA - a_base) / len(coords)
 
         # Convert coords into G1 commands
