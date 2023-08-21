@@ -15,7 +15,7 @@ Coord = collections.namedtuple('Coord', ('x', 'y', 'z', 'a', 'b', 'c', 'e'),
 
 class GCodeCommand:
     error = CommandError
-    def __init__(self, gcode, command, commandline, params, need_ack: bool):
+    def __init__(self, gcode: "GCodeDispatch", command, commandline, params, need_ack: bool):
         self._command = command
         self._commandline = commandline
         self._params = params
