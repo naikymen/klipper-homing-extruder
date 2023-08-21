@@ -163,7 +163,7 @@ class ArcSupport:
 
         # NOTE: Prepare a command that restores the original feedrate.
         original_feedrate = self.gcode_move.speed * 1.0
-        g1_f_gcmd = self.gcode.create_gcode_command(command="G1", commandline="G1", commandline={"F": original_feedrate})
+        g1_f_gcmd = self.gcode.create_gcode_command(command="G1", commandline="G1", params={"F": original_feedrate})
 
         # Convert coords into G1 commands
         for coord in coords:
@@ -187,7 +187,7 @@ class ArcSupport:
             g1_gcmd = self.gcode.create_gcode_command(
                 command="G1", 
                 commandline="G1", 
-                commandline=g1_params)
+                params=g1_params)
             
             # NOTE: write actual G1 commands to the log.
             # logging.info( f'G1 { " ".join([f"{k}{v}" for k, v in g1_params.items()]) }; >>> Arc segment with target: {asTarget}' )
