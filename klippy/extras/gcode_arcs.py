@@ -145,32 +145,57 @@ class ArcSupport:
         e_per_move = e_base = 0.
         if asE is not None:
             if gcodestatus['absolute_extrude']:
+                # NOTE: the extruder axis should always be the last item in the position vector.
                 e_base = currentPos[self.E_AXIS]
             e_per_move = (asE - e_base) / len(coords)
-        
-        a_per_move = 0.
-        if asA is not None:
-            a_base = currentPos[self.A_AXIS]
-            a_per_move = (asA - a_base) / len(coords)
+
+        # NOTE: Add support for moves in the ABC axes, which are not 
+        #       part of the arc move, and should be split like extruder
+        #       moves or "helical axis" moves are.
+        g1_abc_params = {}
+        abc_sq_displacement = 0.0  # Sum of the squared ABC displacements. 
+        for axis_letter in self.axis_names:
+            axis_coord = gcmd.get_float(axis_letter, None)
+            if (axis_coord is not None) and (axis_letter not in "XYZE"):
+                axis_increment = axis_coord / len(coords)
+                g1_abc_params[axis_letter] = axis_increment
+                abc_sq_displacement += axis_increment ** 2
+
+        # NOTE: Prepare a command that restores the original feedrate.
+        original_feedrate = self.gcode_move.speed * 1.0
+        g1_f_gcmd = self.gcode.create_gcode_command(command="G1", commandline="G1", commandline={"F": original_feedrate})
 
         # Convert coords into G1 commands
         for coord in coords:
             g1_params = {'X': coord[0], 'Y': coord[1], 'Z': coord[2]}
+            g1_params.update(g1_abc_params)
             if e_per_move:
                 g1_params['E'] = e_base + e_per_move
                 if gcodestatus['absolute_extrude']:
                     e_base += e_per_move
-            if a_per_move:
-                g1_params['A'] = a_base + a_per_move
-                a_base += a_per_move
+            # NOTE: Calculate feedrate adjustment factor for the current move.
+            #       This is used to "increase" the feedrate internally,
+            #       because: (1) the feedrate for arc moves is expected
+            #       to affect to non-ABC moves only (2) Klipper will split
+            #       the "available feedrate" among all axes; except the E axis.
+            xyz_sq_displacement = sum(i**2 for i in coord[0:3])
+            feedrate_factor = (xyz_sq_displacement + abc_sq_displacement) / xyz_sq_displacement
             if asF is not None:
-                g1_params['F'] = asF
+                g1_params['F'] = asF * feedrate_factor
+            else:
+                g1_params['F'] = original_feedrate * feedrate_factor
+            g1_gcmd = self.gcode.create_gcode_command(
+                command="G1", 
+                commandline="G1", 
+                commandline=g1_params)
             
             # NOTE: write actual G1 commands to the log.
             # logging.info( f'G1 { " ".join([f"{k}{v}" for k, v in g1_params.items()]) }; >>> Arc segment with target: {asTarget}' )
             
-            g1_gcmd = self.gcode.create_gcode_command("G1", "G1", g1_params)
             self.gcode_move.cmd_G1(g1_gcmd)
+        
+        # NOTE: restore original feedrate.
+        self.gcode_move.cmd_G1(g1_f_gcmd)
 
     # function planArc() originates from marlin plan_arc()
     # https://github.com/MarlinFirmware/Marlin
