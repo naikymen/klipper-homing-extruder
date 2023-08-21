@@ -76,7 +76,11 @@ This fork implements:
     - This replaces the rather obscure pre-existing logic.
     - This brings much improvement for noisy ADCs, such as the one in my Arduino UNO.
     - The `samples` config parameter must be set to, at least, `2`. I tested it with 5.
-
+- G2/G3 arc moves are supported when using ABC axes.
+    - Arc move: `G2 X10 Y10 I10 J0 A10 F1000`
+    - Note: The extra axis displacements (e.g `A`, `B`, `C`, etc.) are evenly split across the arc segments, just like the extruder and/or helical axes. The final feedrate is adjusted to a higher value if the move involves the extra axes. This is needed because Klipper would otherwise "distribute" the specified feedrate among axes later on according to their relative displacements. This is not expected from a "standard" GCODE Arc move, whose feedrate parameter refers exclusively to the speed of the XYZ axes.
+    - Note: for lack of better ideas, the default feedrate for ensuing moves will be reset to the feedrate specified in the arc move, or to the feedrate that was set before the move. This is needed because feedrates are internally adjusted for arc moves involving extra axes (e.g. ABC axes).
+    - Limitations: only absolute arc moves are supported (same as upstream Klipper).
 
 ## Contributing: Interested in CNC stuff for Klipper?
 
