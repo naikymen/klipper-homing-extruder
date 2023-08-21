@@ -6,7 +6,8 @@
 # Copyright (C) 2011 Camiel Gubbels / Erik van der Zalm
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
-import math, logging
+import math, logging, copy
+
 
 # Coordinates created by this are converted into G1 commands.
 #
@@ -30,6 +31,10 @@ class ArcSupport:
         # ...
         axis: XYZ  # Optional: XYZ or XYZABC
         # ...
+
+        Example GCODE to test. The following commands should complete in the same amount of time:
+        - G2 X10 Y10 I10 J0 F10000
+        - G2 X10 Y10 A10 I10 J0 F10000
         """
         self.printer = config.get_printer()
         self.mm_per_arc_segment = config.getfloat('resolution', 1., above=0.0)
@@ -136,7 +141,6 @@ class ArcSupport:
             raise gcmd.error("G2/G3 requires IJ, IK or JK parameters")
 
         asE = gcmd.get_float("E", None)
-        asA = gcmd.get_float("A", None)
         asF = gcmd.get_float("F", None)
 
         # Build list of linear coordinates to move
@@ -166,6 +170,7 @@ class ArcSupport:
         g1_f_gcmd = self.gcode.create_gcode_command(command="G1", commandline="G1", params={"F": original_feedrate})
 
         # Convert coords into G1 commands
+        prev_pos = copy.copy(currentPos)
         for coord in coords:
             g1_params = {'X': coord[0], 'Y': coord[1], 'Z': coord[2]}
             g1_params.update(g1_abc_params)
@@ -178,8 +183,12 @@ class ArcSupport:
             #       because: (1) the feedrate for arc moves is expected
             #       to affect to non-ABC moves only (2) Klipper will split
             #       the "available feedrate" among all axes; except the E axis.
-            xyz_sq_displacement = sum(i**2 for i in coord[0:3])
-            feedrate_factor = (xyz_sq_displacement + abc_sq_displacement) / xyz_sq_displacement
+            # xyz_sq_displacement = sum(i**2 for i in coord[0:3])
+            xyz_sq_displacement = sum([(c-pc)**2 for c, pc in zip(coord[0:3], prev_pos[0:3])])
+            feedrate_factor = math.sqrt(xyz_sq_displacement + abc_sq_displacement) / math.sqrt(xyz_sq_displacement)
+            # Save new coordinate for the next loop iteration.
+            prev_pos = coord
+            # Set the adjusted feedrate.
             if asF is not None:
                 g1_params['F'] = asF * feedrate_factor
             else:
