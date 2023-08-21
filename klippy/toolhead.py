@@ -404,6 +404,7 @@ class ToolHead:
         
         # Axis sets and names for them are partially hardcoded all around.
         self.axis_triplets = ["XYZ", "ABC", "UVW"]
+        self.ax_letters = "".join(self.axis_triplets)
         # Find the minimum amount of axes needed for the requested axis triplets.
         # For example, 1 triplet would be required for "XYZ" or "ABC", but 2
         # triplets are needed for any mixing of those (e.g. "XYZAB").
@@ -416,7 +417,7 @@ class ToolHead:
         # NOTE: The value of this attriute must match the one at "gcode_move.py".
         
         # Dictionary to map axes to their indexes in the position vector.
-        self.axis_map = {a: i for i, a in enumerate(list("XYZABCUVW")[:self.min_axes] + ["E"])}
+        self.axis_map = {a: i for i, a in enumerate(list(self.ax_letters)[:self.min_axes] + ["E"])}
         
         # TODO: support more kinematics.
         self.supported_kinematics = ["cartesian_abc", "none"]  # Removed "cartesian" until I fix it.

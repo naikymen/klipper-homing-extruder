@@ -48,6 +48,7 @@ class ArcSupport:
         self.axis_count = len(self.axis_names)
         # Axis sets and names for them are partially hardcoded all around.
         self.axis_triplets = ["XYZ", "ABC", "UVW"]
+        self.ax_letters = "".join(self.axis_triplets)
         # Find the minimum amount of axes needed for the requested axis triplets.
         # For example, 1 triplet would be required for "XYZ" or "ABC", but 2
         # triplets are needed for any mixing of those (e.g. "XYZAB").
@@ -58,17 +59,20 @@ class ArcSupport:
         # self.pos_length = self.axis_count + 1
         # NOTE: The value of this attriute must match the one at "toolhead.py".
 
+        # Dictionary to map axes to their indexes in the position vector.
+        self.axis_map = {a: i for i, a in enumerate(list(self.ax_letters)[:self.min_axes] + ["E"])}
+
         # Enum
         self.ARC_PLANE_X_Y = 0
         self.ARC_PLANE_X_Z = 1
         self.ARC_PLANE_Y_Z = 2
 
         # Enum
-        self.X_AXIS = 0
-        self.Y_AXIS = 1
-        self.Z_AXIS = 2
-        self.E_AXIS = self.min_axes  # NOTE: Not used below.
-        self.A_AXIS = 4
+        self.X_AXIS = self.axis_map.get("X", 0)
+        self.Y_AXIS = self.axis_map.get("Y", 1)
+        self.Z_AXIS = self.axis_map.get("Z", 2)
+        # self.A_AXIS = self.axis_map.get("A", 4)  # NOTE: Not used below.
+        self.E_AXIS = self.axis_map.get("E", None)  # self.min_axes
         
         # Arc Move Clockwise.
         self.gcode.register_command("G2", self.cmd_G2)
@@ -157,23 +161,33 @@ class ArcSupport:
         #       part of the arc move, and should be split like extruder
         #       moves or "helical axis" moves are.
         g1_abc_params = {}
+        g1_abc_increments = {}
         abc_sq_displacement = 0.0  # Sum of the squared ABC displacements. 
-        for axis_letter in self.axis_names:
+        extra_axes_idx = {ax: idx for ax, idx in self.axis_map.items() if idx not in [0,1,2,self.E_AXIS]}
+        for axis_letter, idx in extra_axes_idx.items():
             axis_coord = gcmd.get_float(axis_letter, None)
-            if (axis_coord is not None) and (axis_letter not in "XYZE"):
+            if axis_coord is not None:
+                # Calculate the distance this axis will move during each arc segment.
                 axis_increment = axis_coord / len(coords)
-                g1_abc_params[axis_letter] = axis_increment
+                # Calculate sum of square displacements for the extra axes.
                 abc_sq_displacement += axis_increment ** 2
+                # Make target coordinates for the extra axes of the first move.
+                g1_abc_params[axis_letter] = currentPos[idx] + axis_increment
+                g1_abc_increments[axis_letter] = axis_increment
 
         # NOTE: Prepare a command that restores the original feedrate.
-        original_feedrate = self.gcode_move.speed * 1.0
-        g1_f_gcmd = self.gcode.create_gcode_command(command="G1", commandline="G1", params={"F": original_feedrate})
+        feedrate = self.gcode_move.speed * 1.0
+        if asF is not None:
+            feedrate = asF
+        g1_f_gcmd = self.gcode.create_gcode_command(command="G1", commandline="G1", params={"F": feedrate})
 
         # Convert coords into G1 commands
         prev_pos = copy.copy(currentPos)
         for coord in coords:
             g1_params = {'X': coord[0], 'Y': coord[1], 'Z': coord[2]}
-            g1_params.update(g1_abc_params)
+            for ax, pos in g1_abc_params.items():
+                g1_params[ax] = pos
+                g1_abc_params[ax] += g1_abc_increments[ax]
             if e_per_move:
                 g1_params['E'] = e_base + e_per_move
                 if gcodestatus['absolute_extrude']:
@@ -189,10 +203,9 @@ class ArcSupport:
             # Save new coordinate for the next loop iteration.
             prev_pos = coord
             # Set the adjusted feedrate.
-            if asF is not None:
-                g1_params['F'] = asF * feedrate_factor
-            else:
-                g1_params['F'] = original_feedrate * feedrate_factor
+            g1_params['F'] = feedrate * feedrate_factor
+            
+            # Generate the GCODE command.
             g1_gcmd = self.gcode.create_gcode_command(
                 command="G1", 
                 commandline="G1", 
@@ -201,6 +214,7 @@ class ArcSupport:
             # NOTE: write actual G1 commands to the log.
             # logging.info( f'G1 { " ".join([f"{k}{v}" for k, v in g1_params.items()]) }; >>> Arc segment with target: {asTarget}' )
             
+            # Send the command to the move queue.
             self.gcode_move.cmd_G1(g1_gcmd)
         
         # NOTE: restore original feedrate.
