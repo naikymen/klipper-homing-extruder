@@ -5,6 +5,7 @@
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import logging
 import stepper
+from . import idex_modes
 from kinematics.cartesian import CartKinematics
 from copy import deepcopy
 
@@ -22,8 +23,9 @@ class CartKinematicsABC(CartKinematics):
     max_accel: 1000
     
     TODO:
-      - The "checks" still have the XYZ logic.
-      - Homing is not implemented for ABC.
+      - [ ] The "checks" still have the XYZ logic.
+      - [x] Homing is not implemented for ABC.
+      - [ ] Merge the changes for the IDEX stuff.
     """    
     def __init__(self, toolhead, config, trapq=None,
                  axes_ids=(3, 4), axis_set_letters="AB"):
@@ -104,6 +106,33 @@ class CartKinematicsABC(CartKinematics):
         xyz_axis_names = "xyz"[:len(self.axis_names)]
         for rail, axis in zip(self.rails, xyz_axis_names):
             rail.setup_itersolve('cartesian_stepper_alloc', axis.encode())
+
+        # Setup boundary checks.
+        ranges = [r.get_range() for r in self.rails]
+        # TODO: Check that this works with ABC axes, it will result in 
+        #       "Coord(x=1.0, y=0.0, z=0.0, e=0.0, a=None, b=None, c=None)"
+        #       "Coord(x=-1.0, y=-1.0, z=-1.0, e=0.0, a=None, b=None, c=None)"
+        self.axes_min = toolhead.Coord(*[r[0] for r in ranges], e=0.)
+        self.axes_max = toolhead.Coord(*[r[1] for r in ranges], e=0.)
+        self.dc_module = None
+        
+        # Check for dual carriage support
+        if config.has_section('dual_carriage'):
+            dc_config = config.getsection('dual_carriage')
+            dc_axis = dc_config.getchoice('axis', {'x': 'x', 'y': 'y'})
+            self.dual_carriage_axis = {'x': 0, 'y': 1}[dc_axis]
+            # setup second dual carriage rail
+            self.rails.append(stepper.LookupMultiRail(dc_config))
+            self.rails[3].setup_itersolve('cartesian_stepper_alloc',
+                                          dc_axis.encode())
+            dc_rail_0 = idex_modes.DualCarriagesRail(
+                    self.rails[self.dual_carriage_axis],
+                    axis=self.dual_carriage_axis, active=True)
+            dc_rail_1 = idex_modes.DualCarriagesRail(
+                    self.rails[3], axis=self.dual_carriage_axis, active=False)
+            self.dc_module = idex_modes.DualCarriages(
+                    dc_config, dc_rail_0, dc_rail_1,
+                    axis=self.dual_carriage_axis)
         
         # NOTE: Iterates over "self.rails" to get all the stepper objects.
         for s in self.get_steppers():
@@ -130,29 +159,6 @@ class CartKinematicsABC(CartKinematics):
         
         # Setup limits.
         self.reset_limits()
-        
-        # Setup boundary checks.
-        ranges = [r.get_range() for r in self.rails]
-        # TODO: Check that this works with ABC axes, it will result in 
-        #       "Coord(x=1.0, y=0.0, z=0.0, e=0.0, a=None, b=None, c=None)"
-        #       "Coord(x=-1.0, y=-1.0, z=-1.0, e=0.0, a=None, b=None, c=None)"
-        self.axes_min = toolhead.Coord(*[r[0] for r in ranges], e=0.)
-        self.axes_max = toolhead.Coord(*[r[1] for r in ranges], e=0.)
-        
-        # Check for dual carriage support
-        # if config.has_section('dual_carriage'):
-        #     dc_config = config.getsection('dual_carriage')
-        #     dc_axis = dc_config.getchoice('axis', {'x': 'x', 'y': 'y'})
-        #     self.dual_carriage_axis = {'x': 0, 'y': 1}[dc_axis]
-        #     dc_rail = stepper.LookupMultiRail(dc_config)
-        #     dc_rail.setup_itersolve('cartesian_stepper_alloc', dc_axis.encode())
-        #     for s in dc_rail.get_steppers():
-        #         toolhead.register_step_generator(s.generate_steps)
-        #     self.dual_carriage_rails = [
-        #         self.rails[self.dual_carriage_axis], dc_rail]
-        #     self.printer.lookup_object('gcode').register_command(
-        #         'SET_DUAL_CARRIAGE', self.cmd_SET_DUAL_CARRIAGE,
-        #         desc=self.cmd_SET_DUAL_CARRIAGE_help)
     
     def reset_limits(self):
         # self.limits = [(1.0, -1.0)] * len(self.axis_config)
@@ -167,16 +173,10 @@ class CartKinematicsABC(CartKinematics):
     def get_steppers(self):
         # NOTE: The "self.rails" list contains "PrinterRail" objects, which
         #       can have one or more stepper (PrinterStepper/MCU_stepper) objects.
-        rails = self.rails
-        
-        # if self.dual_carriage_axis is not None:
-        #     dca = self.dual_carriage_axis
-        #     rails = rails[:dca] + self.dual_carriage_rails + rails[dca+1:]
-        
         # NOTE: run "get_steppers" on each "PrinterRail" object from 
         #       the "self.rails" list. That method returns the list of
         #       all "PrinterStepper"/"MCU_stepper" objects in the kinematic.
-        return [s for rail in rails for s in rail.get_steppers()]
+        return [s for rail in self.rails for s in rail.get_steppers()]
     
     def calc_position(self, stepper_positions):
         # Dummy default position.
@@ -196,6 +196,15 @@ class CartKinematicsABC(CartKinematics):
 
         # return [stepper_positions[rail.get_name()] for rail in self.rails]
         return pos.copy()
+    
+    def update_limits(self, i, range):
+        l, h = self.limits[i]
+        # Only update limits if this axis was already homed,
+        # otherwise leave in un-homed state.
+        if l <= h:
+            self.limits[i] = range
+    def override_rail(self, i, rail):
+        self.rails[i] = rail
     
     def set_position(self, newpos, homing_axes):
         logging.info("\n\n" +
@@ -219,7 +228,7 @@ class CartKinematicsABC(CartKinematics):
         logging.info(f"\n\nCartKinematicsABC WARNING: call to note_z_not_homed ignored.\n\n")
         pass
     
-    def _home_axis(self, homing_state, axis, rail):
+    def home_axis(self, homing_state, axis, rail):
         # Determine movement
         position_min, position_max = rail.get_range()
         hi = rail.get_homing_info()
@@ -235,11 +244,16 @@ class CartKinematicsABC(CartKinematics):
         homing_state.home_rails([rail], forcepos, homepos)
     
     def home(self, homing_state):
+        # NOTE: "homing_state" is an instance of the "Homing" class.
+        logging.info(f"\n\ncartesian_abc.home: homing axis changed_axes={homing_state.changed_axes}\n\n")
         # Each axis is homed independently and in order
         toolhead = self.printer.lookup_object('toolhead')
         for axis in homing_state.get_axes():
-            # NOTE: support for dual carriage removed.
-            self._home_axis(homing_state, axis, self.rails[toolhead.axes_to_xyz(axis)])
+            # TODO: WARNING support for dual carriage untested.
+            if self.dc_module is not None and axis == self.dual_carriage_axis:
+                self.dc_module.home(homing_state)
+            else:
+                self.home_axis(homing_state, axis, self.rails[toolhead.axes_to_xyz(axis)])
     
     def _motor_off(self, print_time):
         self.reset_limits()
@@ -321,25 +335,6 @@ class CartKinematicsABC(CartKinematics):
             'axis_minimum': self.axes_min,
             'axis_maximum': self.axes_max,
         }
-    
-    # Dual carriage support
-    # def _activate_carriage(self, carriage):
-    #     toolhead = self.printer.lookup_object('toolhead')
-    #     toolhead.flush_step_generation()
-    #     dc_rail = self.dual_carriage_rails[carriage]
-    #     dc_axis = self.dual_carriage_axis
-    #     self.rails[dc_axis].set_trapq(None)
-    #     dc_rail.set_trapq(toolhead.get_trapq())
-    #     self.rails[dc_axis] = dc_rail
-    #     pos = toolhead.get_position()
-    #     pos[dc_axis] = dc_rail.get_commanded_position()
-    #     toolhead.set_position(pos)
-    #     if self.limits[dc_axis][0] <= self.limits[dc_axis][1]:
-    #         self.limits[dc_axis] = dc_rail.get_range()
-    # cmd_SET_DUAL_CARRIAGE_help = "Set which carriage is active"
-    # def cmd_SET_DUAL_CARRIAGE(self, gcmd):
-    #     carriage = gcmd.get_int('CARRIAGE', minval=0, maxval=1)
-    #     self._activate_carriage(carriage)
 
 def load_kinematics(toolhead, config, trapq=None, axes_ids=(0, 1, 2), axis_set_letters="XYZ"):
     return CartKinematicsABC(toolhead, config, trapq, axes_ids, axis_set_letters)
