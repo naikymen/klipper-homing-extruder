@@ -8,6 +8,21 @@
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import math, logging, copy
 
+# Setup a logger: https://stackoverflow.com/a/11233293
+def setup_logger(name, log_file, level=logging.INFO):
+    """To setup as many loggers as you want"""
+    handler = logging.FileHandler(log_file)        
+
+    # formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    # handler.setFormatter(formatter)
+
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    logger.addHandler(handler)
+
+    return logger
+gcode_log = setup_logger('gcode_log', '/tmp/gcode.log')
+
 
 # Coordinates created by this are converted into G1 commands.
 #
@@ -212,7 +227,8 @@ class ArcSupport:
                 params=g1_params)
             
             # NOTE: write actual G1 commands to the log.
-            # logging.info( f'G1 { " ".join([f"{k}{v}" for k, v in g1_params.items()]) }; >>> Arc segment with target: {asTarget}' )
+            # gcode_log.info( f'G1 { " ".join([f"{k}{v}" for k, v in g1_params.items()]) }; >>> Arc segment with target: {asTarget}' )
+            gcode_log.info( f'G1 { " ".join([f"{k}{v}" for k, v in g1_params.items()]) }' )
             
             # Send the command to the move queue.
             self.gcode_move.cmd_G1(g1_gcmd)
