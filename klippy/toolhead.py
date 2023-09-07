@@ -545,8 +545,8 @@ class ToolHead:
             config (_type_): Klipper configuration object.
         """
         # Get and setup XYZ axes.
-        xyz_axes = ''.join([ax for ax in self.axis_names if ax in "XYZ"])  # e.g. "XY"
-        xyz_ids = [i for i, ax in enumerate(self.axis_names) if ax in "XYZ"]  # e.g. "[1, 2]"
+        xyz_axes = ''.join([ax for ax in self.axis_names if ax in "XYZ"])       # e.g. "XY"
+        xyz_ids = [i for i, ax in enumerate(self.axis_names) if ax in "XYZ"]    # e.g. "[0, 1]"
         if xyz_axes:
             # Create XYZ kinematics class, and its XYZ trapq (iterative solver).
             self.kin, self.trapq = self.setup_kinematics(config=config, 
@@ -559,8 +559,8 @@ class ToolHead:
             self.kin, self.trapq = None, None
         
         # Setup ABC axes
-        abc_axes = ''.join([ax for ax in self.axis_names if ax in "ABC"])  # e.g. "AB"
-        abc_ids = [i for i, ax in enumerate(self.axis_names) if ax in "ABC"]  # e.g. "[3, 4]"
+        abc_axes = ''.join([ax for ax in self.axis_names if ax in "ABC"])       # e.g. "AB"
+        abc_ids = [i for i, ax in enumerate(self.axis_names) if ax in "ABC"]    # e.g. "[3, 4]"
         if abc_axes:
             # Create ABC kinematics class, and its ABC trapq (iterative solver).
             self.kin_abc, self.abc_trapq = self.setup_kinematics(config=config, 
@@ -620,8 +620,8 @@ class ToolHead:
             # Run the modules setup function.
             kin = mod.load_kinematics(toolhead=self, config=config, trapq=trapq, 
                                       # Specify which of the "toolhead position" elements correspond to the new set of axes.
-                                      axes_ids=axes_ids.copy(),
-                                      axis_set_letters=axis_set_letters)
+                                      axes_ids=axes_ids.copy(),             # e.g. [1,2]
+                                      axis_set_letters=axis_set_letters)    # e.g. "XY"
         except config.error as e:
             raise
         except self.printer.lookup_object('pins').error as e:
