@@ -39,11 +39,16 @@ This fork implements:
         - Move: `G1 X10 Y10 Z10 A10 B10 C10 E10` (same as a regular G1 command).
         - Home: `G28 A` (same as regular `G28`).
         - Multi-probe: `MULTIPROBE2 PROBE_NAME=myprobe A=-20 B=10 F=2` (same as regular `MULTIPROBE`).
-        - And so on …
+        - And so on ...
     - Configuration: add ABC kinematics to `[printer]` and the corresponding `[stepper_abc]` sections (details below).
-        - Note: you must use `cartesian_abc` instead of `cartesian` at your `[printer]` section.
-    - Limitations: needs testing on longer GCODE programs. The 3 stepper sections must be configured, _partial_ extra axis is not implemented yet (i.e. XYZ+AB). Extra steppers not tested (i.e. `stepper_a1`).
-    - Module incompatibilites: probably many. Tested with `virtual_sdcard`, `pause_resume`, and `force_move`. Non-cartesian kinematics for the XYZ axes not tested.
+        - You must use `cartesian_abc` instead of `cartesian` at your `[printer]` section.
+        - _Partial_ axis sets are implemented (i.e. `XY`-only for laser machines, `XYZE+A` for cutters, etc.).
+    - Limitations:
+        - Needs testing on longer GCODE programs. Extra steppers not tested (i.e. `stepper_a1`).
+        - XYZ axes seem to throttle during GCODE arcs (see notes below).
+    - Notes:
+        - The feedrate is shared among all active axes, meaning that an XYA move at F200 will be "slower" in the XY plane than a XY-only move at the same feedrate.
+    - Module incompatibilites: probably many. Tested with `virtual_sdcard`, `pause_resume`, and `force_move`. Non-cartesian kinematics are untested and will probably not work, help for porting them is welcome!
 - Homing on the steppers of `[extruder]`s.
     - Module: [extruder_home.py](./klippy/extras/extruder_home.py)
     - Command: `HOME_ACTIVE_EXTRUDER`.
