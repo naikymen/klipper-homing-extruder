@@ -574,6 +574,8 @@ class ToolHead:
 
         # Save the position indexes for the selected axes.
         self.axes = xyz_ids + abc_ids
+        # Add the extruder axis.
+        self.axes += [self.axis_map["E"]]
     
     # Load kinematics object
     def setup_kinematics(self, config, axes_ids, config_name='kinematics', axis_set_letters="XYZ"):
@@ -1148,14 +1150,17 @@ class ToolHead:
             speed (_type_): _description_
         """
 
-        # Check if any unconfigured axes are being moved.
-        moved_axes = [i for i, (sp, ep) in enumerate(zip(self.commanded_pos, newpos)) if sp != ep]
+        logging.info(f"\n\ntoolhead.move: processing move to newpos={newpos} at speed={speed}\n\n")
+
+        # Check if any unconfigured (non-extruder) axes are being moved.
+        moved_axes = [i for i, (start_pos, end_pos) in enumerate(zip(self.commanded_pos, newpos)) if start_pos != end_pos]
         unconfigured_axes = list(set(moved_axes).difference(self.axes))
+        logging.info(f"\n\ntoolhead.move: moved_axes={moved_axes} unconfigured_axes={unconfigured_axes} self.axes={self.axes}\n\n")
         if unconfigured_axes:
             unconfigured_axes_names = "".join( [ list(self.axis_map)[ax] for ax in unconfigured_axes] )
             raise self.printer.command_error(f"Toolhead move: you must configure the {unconfigured_axes_names} axes ({unconfigured_axes}) in order to use them.")
 
-        logging.info(f"\n\ntoolhead.move: moving to newpos={newpos}.\n\n")
+        logging.info(f"\n\ntoolhead.move: moving to newpos={newpos}\n\n")
         move = Move(toolhead=self, 
                     start_pos=self.commanded_pos,
                     end_pos=newpos, 
