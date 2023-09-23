@@ -645,15 +645,27 @@ class PrinterHoming:
                     raise self.printer.command_error(f"Homing error: you must configure the {axis} axis in order to use it.")
                 axes.append(pos)
         if not axes:
-            axes = list(range(toolhead.pos_length))[-1]
-            # axes = [0, 1, 2]
+            # Check if the active extruder can be homed.
+            try:
+                home_extruder = toolhead.extruder.can_home
+            except:
+                home_extruder = False
+            # Home the extruder axis if possible.
+            if home_extruder:
+                axes = list(range(toolhead.pos_length))
+            else:
+                # Home all axes, except the extruder axis.
+                axes = list(range(toolhead.pos_length))[:-1]
+            # Example axes = [0, 1, 2]
+            logging.info(f"\n\nPrinterHoming.cmd_G28: no specific axes requested, homing axes={axes}\n\n")
         
         logging.info(f"\n\nPrinterHoming.cmd_G28: homing axes={axes}\n\n")
         
         # NOTE: Home all of the requested axes, from their respective kinematics.
-        for kin_axes in list(toolhead.kinematics):
-            # Iterate over ["XYZ", "ABC"].
+        for kin_axes in list(toolhead.kinematics):  # Iterate over ["XYZ", "ABC"].
+            # Get kinematics by axis set name (e.g. "XYZ").
             kin = toolhead.kinematics[kin_axes]
+            logging.info(f"\n\nPrinterHoming.cmd_G28: checking if kin axes={kin.axis} have been requested to home.\n\n")
             if any(i in kin.axis for i in axes):
                 self.home_axes(kin=kin, homing_axes=[a for a in axes if a in kin.axis])
         
