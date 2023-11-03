@@ -121,7 +121,7 @@ class Move:
     
     def calc_junction(self, prev_move):
         # NOTE: Check if this is an "extruder only" move (i.e. a move not using the 
-        #       main/non-extruder kinematics).
+        #       main/non-extruder kinematics) or if the previous one wasn't.
         if not self.is_kinematic_move or not prev_move.is_kinematic_move:
             return
         
@@ -422,7 +422,7 @@ class ToolHead:
         # TODO: support more kinematics.
         self.supported_kinematics = ["cartesian_abc", "none"]  # Removed "cartesian" until I fix it.
         
-        logging.info(f"\n\nToolHead: starting setup with axes: {self.axis_names}\n\n")
+        logging.info(f"\n\nToolHead: starting setup with axes={self.axis_names} and pos_length={self.pos_length}\n\n")
         
         self.printer = config.get_printer()
         self.reactor = self.printer.get_reactor()
@@ -1101,7 +1101,7 @@ class ToolHead:
             logging.info("\n\n" + f"toolhead.set_kin_trap_position: setting trapq pos to newpos={newpos}\n\n")
             ffi_main, ffi_lib = chelper.get_ffi()
             ffi_lib.trapq_set_position(self.trapq, self.print_time,
-                                    newpos[0], newpos[1], newpos[2])
+                                       newpos[0], newpos[1], newpos[2])
         else:
             logging.info("\n\n" + f"toolhead.set_kin_trap_position: trapq was None, skipped setting to newpos={newpos}\n\n")
     

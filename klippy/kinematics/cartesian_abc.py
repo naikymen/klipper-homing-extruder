@@ -3,6 +3,14 @@
 # Copyright (C) 2016-2021  Kevin O'Connor <kevin@koconnor.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
+
+# Type checking without cyclicc import error.
+# See: https://stackoverflow.com/a/39757388
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from extras.homing import Homing
+
 import logging
 import stepper
 from . import idex_modes
@@ -228,7 +236,7 @@ class CartKinematicsABC(CartKinematics):
         logging.info(f"\n\nCartKinematicsABC WARNING: call to note_z_not_homed ignored.\n\n")
         pass
     
-    def home_axis(self, homing_state, axis, rail):
+    def home_axis(self, homing_state: Homing, axis, rail):
         # Determine movement
         position_min, position_max = rail.get_range()
         hi = rail.get_homing_info()
@@ -243,7 +251,7 @@ class CartKinematicsABC(CartKinematics):
         logging.info(f"\n\ncartesian_abc._home_axis: homing axis={axis} with forcepos={forcepos} and homepos={homepos}\n\n")
         homing_state.home_rails([rail], forcepos, homepos)
     
-    def home(self, homing_state):
+    def home(self, homing_state: Homing):
         # NOTE: "homing_state" is an instance of the "Homing" class.
         logging.info(f"\n\ncartesian_abc.home: homing axis changed_axes={homing_state.changed_axes}\n\n")
         # Each axis is homed independently and in order

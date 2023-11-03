@@ -3,6 +3,14 @@
 # Copyright (C) 2016-2021  Kevin O'Connor <kevin@koconnor.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
+
+# Type checking without cyclicc import error.
+# See: https://stackoverflow.com/a/39757388
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from ..toolhead import ToolHead
+
 import logging, math
 from kinematics.cartesian_abc import CartKinematicsABC
 
@@ -62,7 +70,7 @@ class HomingMove:
         #       - set_position
         if toolhead is None:
             toolhead = printer.lookup_object('toolhead')
-        self.toolhead = toolhead
+        self.toolhead: ToolHead = toolhead
         self.stepper_positions = []
     
     def get_mcu_endstops(self):
@@ -159,6 +167,7 @@ class HomingMove:
     
     def homing_move(self, movepos, speed, probe_pos=False,
                     triggered=True, check_triggered=True):
+        """Called by the 'home_rails' or 'manual_home' methods."""
         # Notify start of homing/probing move
         self.printer.send_event(self.toolhead.event_prefix + "homing:homing_move_begin", self)
         logging.info(f"\n\nhoming.homing_move: homing move called, starting setup.\n\n")
@@ -178,7 +187,7 @@ class HomingMove:
             #       kinematics, which returns a dict of "MCU_stepper" objects,
             #       with names as "stepper_x", "stepper_y", etc.
             kin_spos.update({s.get_name(): s.get_commanded_position()
-                            for s in kin.get_steppers()})
+                             for s in kin.get_steppers()})
 
         # NOTE: Repeat the above for the extruders, adding them to the "kin_spos" dict.
         #       This is important later on, when calling "calc_toolhead_pos".
@@ -412,7 +421,7 @@ class Homing:
         # NOTE: Copied over toolhead loading code from "HomingMove".
         if toolhead is None:
             toolhead = printer.lookup_object("toolhead")
-        self.toolhead = toolhead
+        self.toolhead: ToolHead = toolhead
         # NOTE: The normal setup continues.
         self.printer = printer
         self.changed_axes = []
@@ -437,7 +446,9 @@ class Homing:
         self.toolhead.set_position(self._fill_coord(pos))
     
     def home_rails(self, rails, forcepos, movepos):
-        """_summary_
+        """Called by 'home_axis' at the 'cartesian_abc' kinematics module,
+        which calculates the start position (which should be forced) and
+        the end position (derived from endstop position parameters).
 
         Args:
             rails (list): A list of stepper "rail" objects.

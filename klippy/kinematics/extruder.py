@@ -397,8 +397,9 @@ class PrinterExtruder:
         self.extruder_stepper.check_move_limits(move)
 
     def set_position(self, newpos_e, homing_axes=(), print_time=None):
-        """PrinterExtruder version of set_position in toolhead.py
-        This should set the position in the 'trapq' and in the 'extruder kin'.
+        """PrinterExtruder version of set_position in 'toolhead.py', 
+        called by its 'set_position_e' method.
+        Should set the position in the 'trapq' and in the 'extruder kin'.
         """
         if print_time is None:
             toolhead = self.printer.lookup_object('toolhead')
@@ -410,6 +411,9 @@ class PrinterExtruder:
         # NOTE: Check if the E axis is being homed. This
         #       will signal the stepper to set its limits 
         #       and appear as "homed".
+        # NOTE: 'homing_axes' should contain a value equal to
+        #       'self.toolhead.pos_length' in that case.
+        #       See 'cmd_HOME_EXTRUDER' at 'extruder_home.py'.
         homing_e = self.axis_idx in homing_axes
 
         # NOTE: Have the ExtruderStepper set its "MCU_stepper" position.

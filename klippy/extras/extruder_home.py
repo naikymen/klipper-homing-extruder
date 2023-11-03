@@ -152,7 +152,7 @@ class ExtruderHoming:
         # NOTE: Get the steppers
         self.extruder_stepper = self.extruder.extruder_stepper      # ExtruderStepper
         self.rail: stepper.PrinterRail = self.extruder_stepper.rail # PrinterRail
-        self.stepper: MCU_stepper = self.extruder_stepper.stepper   # MCU_stepper
+        self.stepper: stepper.MCU_stepper = self.extruder_stepper.stepper   # MCU_stepper
         self.steppers = [self.stepper]                              # [MCU_stepper]
         # NOTE: in the "ExtruderStepper" class, the "rail" and the "stepper"  
         #       objects are _the same_ object.
@@ -163,7 +163,7 @@ class ExtruderHoming:
         #       See PrinterRail at stepper.py.
         endstops = self.rail.get_endstops()                 # [(mcu_endstop, name)]
         
-        # NOTE: get a PrinterHoming class from extras
+        # NOTE: get a PrinterHoming class from extras.
         phoming: PrinterHoming = self.printer.lookup_object('homing')      # PrinterHoming
 
         # NOTE: Get original toolhead position 
@@ -187,7 +187,8 @@ class ExtruderHoming:
         else:
             e_startpos = position_max
         startpos = self.th_orig_pos[:-1] + [e_startpos]
-        self.toolhead.set_position(startpos, homing_axes=(self.toolhead.pos_length, ))
+        self.toolhead.set_position(newpos=startpos, 
+                                   homing_axes=(self.toolhead.pos_length, ))
 
         # NOTE: flag homing start
         self.homing = True
