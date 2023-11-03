@@ -561,7 +561,9 @@ def LookupMultiRail(config, need_position_minmax=True,
     rail = PrinterRail(config, need_position_minmax,
                        default_position_endstop, units_in_radians)
     for i in range(1, 99):
-        if not config.has_section(config.get_name() + str(i)):
+        section_name = config.get_name() + str(i)
+        if not config.has_section(section_name):
             break
-        rail.add_extra_stepper(config.getsection(config.get_name() + str(i)))
+        logging.info(f"LookupMultiRail: adding stepper '{section_name}'.")
+        rail.add_extra_stepper(config.getsection(section_name))
     return rail
