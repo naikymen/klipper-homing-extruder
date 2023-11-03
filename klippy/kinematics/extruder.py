@@ -309,7 +309,7 @@ class PrinterExtruder:
         # NOTE: Get the axis ID (index) of the extruder axis. Will
         #       be equal to the amount of axes in the toolhead,
         #       either XYZ=3 or XYZABC=6.
-        self.axis_idx = toolhead.axis_count
+        self.axis_idx = toolhead.pos_length
         
         # Setup extruder trapq (trapezoidal motion queue)
         ffi_main, ffi_lib = chelper.get_ffi()
@@ -405,15 +405,16 @@ class PrinterExtruder:
             toolhead = self.printer.lookup_object('toolhead')
             print_time = toolhead.print_time
 
+        logging.info(f"\n\nPrinterExtruder.set_position: called with newpos_e={newpos_e} homing_axes={homing_axes} and self.axis_idx={self.axis_idx}.\n\n")
+
         # Set the TRAPQ's position
         self.trapq_set_position(self.trapq, print_time, newpos_e, 0., 0.)
         
         # NOTE: Check if the E axis is being homed. This
         #       will signal the stepper to set its limits 
         #       and appear as "homed".
-        # NOTE: 'homing_axes' should contain a value equal to
-        #       'self.toolhead.pos_length' in that case.
-        #       See 'cmd_HOME_EXTRUDER' at 'extruder_home.py'.
+        # NOTE: 'homing_axes' should contain a value equal to 'self.toolhead.pos_length'
+        #       in this case (e.g. '4' in an XYZE setup). See 'cmd_HOME_EXTRUDER' at 'extruder_home.py'.
         homing_e = self.axis_idx in homing_axes
 
         # NOTE: Have the ExtruderStepper set its "MCU_stepper" position.
