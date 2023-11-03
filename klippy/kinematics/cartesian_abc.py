@@ -58,8 +58,9 @@ class CartKinematicsABC(CartKinematics):
 
         # Just to check
         if len(self.axis_config) != self.axis_count:
-            msg = f"CartKinematicsABC: The amount of axis indexes in '{self.axis_config}'"
+            msg = f"CartKinematicsABC: Error. The amount of axis indexes in '{self.axis_config}'"
             msg += f" does not match the count of axis names '{self.axis_names}'."
+            logging.exception(msg)
             raise Exception(msg)
         
         # NOTE: Infer the triplet from one of the axes: 1 means XYZ; 2 means ABC.

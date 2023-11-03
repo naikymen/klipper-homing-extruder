@@ -609,7 +609,7 @@ class ToolHead:
             logging.exception(msg)
             raise config.error(msg)
         else:
-            logging.exception(f"Loading kinematics {kin_name}")
+            logging.info(f"Loading kinematics {kin_name}.")
         
         # Create a Trapq for the kinematics
         ffi_main, ffi_lib = chelper.get_ffi()
