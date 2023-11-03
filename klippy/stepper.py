@@ -564,6 +564,6 @@ def LookupMultiRail(config, need_position_minmax=True,
         section_name = config.get_name() + str(i)
         if not config.has_section(section_name):
             break
-        logging.info(f"LookupMultiRail: adding stepper '{section_name}'.")
+        logging.info(f"LookupMultiRail: adding extra stepper '{section_name}'.")
         rail.add_extra_stepper(config.getsection(section_name))
     return rail
