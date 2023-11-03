@@ -148,7 +148,7 @@ class ForceMove:
             # If not found, then the position remains the same.
         # Set the position. Those axes in the homing_axes list will
         # be set as "homed" by downstream methods (specially kinematics).
-        logging.info(f"SET_KINEMATIC_POSITION: setting position with curpos={curpos} scanning axis_map={toolhead.axis_map} for commandline={gcmd.get_commandline}")
+        logging.info(f"SET_KINEMATIC_POSITION: setting position with curpos={curpos} scanning axis_map={toolhead.axis_map} for commandline={gcmd.get_commandline()}")
         toolhead.set_position(curpos, homing_axes=tuple(homing_axes))
 
         # Set position on extra toolheads

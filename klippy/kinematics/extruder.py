@@ -309,7 +309,7 @@ class PrinterExtruder:
         # NOTE: Get the axis ID (index) of the extruder axis. Will
         #       be equal to the amount of axes in the toolhead,
         #       either XYZ=3 or XYZABC=6.
-        self.axis_idx = toolhead.pos_length
+        self.axis_idx = toolhead.axis_count
         
         # Setup extruder trapq (trapezoidal motion queue)
         ffi_main, ffi_lib = chelper.get_ffi()
