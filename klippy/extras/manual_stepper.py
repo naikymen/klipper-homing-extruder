@@ -128,7 +128,36 @@ class ManualStepper:
         # NOTE: "manual_home" is defined in the PrinterHoming class (at homing.py).
         #       The method instantiates a "HomingMove" class by passing it the
         #       "endstops" and "toolhead" objects. Here, the "self" object is passed
-        #       as a "virtual toolhead"
+        #       as a "virtual toolhead" to "manual_home".
+        # NOTE: The requried "endstop"s are from the manual stepper's PrinterRail object.
+        # NOTE: "PrinterHoming.manual_home" then calls "HomingMove.homing_move".
+        #       The downstream methods in the "HomingMove" class use the
+        #       following methods provided by the "virtual toolhead" object 
+        #       (i.e. "self", this very class):
+        #       - flush_step_generation
+        #       - get_kinematics:           returning a "kin" object with methods:
+        #           - kin.get_steppers:     returning a list of stepper objects.
+        #           - kin.calc_position:    returning ???
+        #       - get_position:             returning "thpos" (toolhead position)
+        #       - get_last_move_time:       returning "print_time" (and later "move_end_print_time")
+        #       - dwell
+        #       - drip_move
+        #       - set_position
+        # NOTE: Other methods using the toolhead object or derivatives are also called:
+        #       -   calc_toolhead_pos: This method receives a "movepos" argument,
+        #           which is the "pos" list above:  pos = [0., 0., 0., 0.]
+        # NOTE: Of these methods, the Extruder class defines none.
+        # NOTE: The object returned by "get_kinematics" is
+        #       required to have the following methods:
+        #       - get_steppers()
+        #       - calc_position(kin_spos)
+        # NOTE: The following command ends up calling the methods 
+        #       in this class. For example "drip_move" for moving
+        #       the extruder (towards the endstop, ideally).
+        # NOTE: There are also other methods for homing:
+        #       - probing_move ???
+        #       - cmd_G28: ???
+        # TODO: consider using those alternative methods.
         phoming.manual_home(self, endstops, pos, speed,
                             triggered, check_trigger)
     
