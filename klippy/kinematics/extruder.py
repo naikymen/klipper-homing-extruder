@@ -113,8 +113,8 @@ class ExtruderStepper:
     
     def sync_to_extruder(self, extruder_name):
         # NOTE: from the following I guess that the
-        #       "SYNC_STEPPER_TO_EXTRUDER" command 
-        #       mainly swaps the "trapq" movement queues,
+        #       "SYNC_STEPPER_TO_EXTRUDER" and "SYNC_EXTRUDER_MOTION"
+        #       commands mainly swap the "trapq" movement queues,
         #       using the "set_trapq" method from stepper.py
         toolhead = self.printer.lookup_object('toolhead')
         toolhead.flush_step_generation()
@@ -241,6 +241,16 @@ class ExtruderStepper:
                           % (self.name, rotation_dist))
     cmd_SYNC_EXTRUDER_MOTION_help = "Set extruder stepper motion queue"
     def cmd_SYNC_EXTRUDER_MOTION(self, gcmd):
+        """
+        This command will cause the stepper specified by EXTRUDER (as defined in 
+        an [extruder] or [extruder_stepper] config section) to become synchronized 
+        to the movement of an extruder specified by MOTION_QUEUE (as defined in an 
+        [extruder] config section).
+        If MOTION_QUEUE is an empty string then the stepper will be desynchronized 
+        from all extruder movement.
+        
+        Usage: SYNC_EXTRUDER_MOTION EXTRUDER=<name> MOTION_QUEUE=<name>
+        """
         ename = gcmd.get('MOTION_QUEUE')
         self.sync_to_extruder(ename)
         gcmd.respond_info("Extruder '%s' now syncing with '%s'"
@@ -258,6 +268,7 @@ class ExtruderStepper:
         gcmd.respond_info("Extruder '%s' step distance set to %0.6f"
                           % (self.name, step_dist))
     cmd_SYNC_STEPPER_TO_EXTRUDER_help = "Set extruder stepper"
+    # NOTE: From the docs "This command is deprecated and will be removed in the near future."
     def cmd_SYNC_STEPPER_TO_EXTRUDER(self, gcmd):
         ename = gcmd.get('EXTRUDER')
         self.sync_to_extruder(ename)
