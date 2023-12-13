@@ -397,6 +397,7 @@ class GCodeMove:
     def cmd_GET_POSITION(self, gcmd):
         
         # TODO: add ABC steppers to GET_POSITION.
+        # TODO: add manual steppers to GET_POSITION.
         if self.axis_names != 'XYZ':
             gcmd.respond_info(f'cmd_GET_POSITION: No support for {self.axis_names} axes. Only XYZ suported for now.')
         

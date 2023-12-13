@@ -585,7 +585,8 @@ class PrinterHoming:
                     triggered, check_triggered):
         hmove = HomingMove(self.printer, endstops, toolhead)
         try:
-            hmove.homing_move(movepos=pos, speed=speed,  # probe_pos=False  # default value
+            hmove.homing_move(movepos=pos, speed=speed,
+                              # NOTE: # By default "probe_pos" is set to "False".
                               triggered=triggered,
                               check_triggered=check_triggered)
         except self.printer.command_error:

@@ -31,6 +31,12 @@ class ManualStepper:
         self.trapq_finalize_moves = ffi_lib.trapq_finalize_moves
         self.rail.setup_itersolve('cartesian_stepper_alloc', b'x')
         self.rail.set_trapq(self.trapq)
+
+        # NOTE: Additional objects required by "HomingMove.homing_move", needed
+        #       to home the manual stepper. See notes below, at "do_homing_move".
+        self.event_prefix=""
+        self.kinematics={"m": self}
+
         # Register commands
         stepper_name = config.get_name().split()[1]
         gcode = self.printer.lookup_object('gcode')
@@ -157,12 +163,21 @@ class ManualStepper:
         # NOTE: There are also other methods for homing:
         #       - probing_move ???
         #       - cmd_G28: ???
-        # TODO: consider using those alternative methods.
-        phoming.manual_home(self, endstops, pos, speed,
-                            triggered, check_trigger)
+        # TODO: Consider using those alternative methods.
+        phoming.manual_home(toolhead=self, endstops=endstops, pos=pos, speed=speed,
+                            triggered=triggered, check_triggered=check_trigger)
     
     cmd_MANUAL_STEPPER_help = "Command a manually configured stepper"
     def cmd_MANUAL_STEPPER(self, gcmd):
+        """
+        Usage: MANUAL_STEPPER STEPPER=config_name [ENABLE=[0|1]] [SET_POSITION=<pos>] [SPEED=<speed>] [ACCEL=<accel>] [MOVE=<pos> [STOP_ON_ENDSTOP=[1|2|-1|-2]] [SYNC=0]]
+
+        Homing example: MANUAL_STEPPER STEPPER=manolo MOVE=100 STOP_ON_ENDSTOP=1
+
+        If STOP_ON_ENDSTOP=1 is specified then the move will end early should the endstop report as triggered.
+        Use STOP_ON_ENDSTOP=2 to complete the move without error even if the endstop does not trigger, 
+        and use -1 or -2 to stop when the endstop reports not triggered. This is similar to LinuxCNC's G38.n commands.
+        """
         # Enabling
         enable = gcmd.get_int('ENABLE', None)
         if enable is not None:
