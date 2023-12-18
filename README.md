@@ -1,14 +1,22 @@
 # Klipper for CNC 
 
-Welcome to my fork of the Klipper project, with awesome home-able extruders, configurable extra ABC axes, and CNC-style probing!
+Welcome to my fork of the Klipper project, with home-able extruders, configurable extra ABC axes, and CNC-style probing!
 
-I also mingled with the PID controller, to _optionally_ mitigate the effect of measurement noise by averaging samples.
+Full changes and limitations stated further down this readme.
 
-Use cases:
+Use cases: as far as I can tell.
 
 - More general CNC usage.
 - Syringe extruders.
 - Pipetting / liquid-handling robots / lab-automation.
+
+Follow the discussion over at Klipper's forum: https://klipper.discourse.group/t/12249
+
+Critical limitations: you should know this beforehand.
+
+- Only the cartesian kinematic has been adapted (others could be without much work).
+- Most of the modules in "extra" have not been tested to work.
+- Limitations stated further down this readme.
 
 [![Klipper](docs/img/klipper-logo-small.png)](https://www.klipper3d.org/)
 
