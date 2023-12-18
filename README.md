@@ -320,4 +320,4 @@ The easiest way is to use a KIAUH "klipper_repos.txt" file. Details at: https://
 
 ## Updates through moonraker
 
-Thanks to some [changes in upstream moonraker]([url](https://github.com/Arksine/moonraker/issues/615)), a properly configured repo can be updated from Mainsail just as the original Klipper.
+Thanks to some [changes in upstream moonraker](https://github.com/Arksine/moonraker/issues/615), a properly configured repo can be updated from Mainsail just as the original Klipper.
