@@ -16,6 +16,7 @@ Critical limitations: you should know this beforehand.
 
 - Only the **cartesian** kinematic has been adapted. Others could be without much work, this is a good place for contributions.
 - Acceleration is shared among all axes. Abrupt speed changes in the ABC axes will cause XYZ movements to slow down accordingly.
+  - Note: motion on the ABC axes will not affect maximum speed of the XYZ axes, which will match the desired feedrate (`F` parameter).
 - Most of the modules in "extra" have not been tested and might not work.
 - Limitations stated further down this readme.
 
