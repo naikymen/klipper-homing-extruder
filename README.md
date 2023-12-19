@@ -14,8 +14,9 @@ Follow the discussion over at Klipper's forum: https://klipper.discourse.group/t
 
 Critical limitations: you should know this beforehand.
 
-- Only the cartesian kinematic has been adapted (others could be without much work).
-- Most of the modules in "extra" have not been tested to work.
+- Only the **cartesian** kinematic has been adapted. Others could be without much work, this is a good place for contributions.
+- Acceleration is shared among all axes. Abrupt speed changes in the ABC axes will cause XYZ movements to slow down accordingly.
+- Most of the modules in "extra" have not been tested and might not work.
 - Limitations stated further down this readme.
 
 [![Klipper](docs/img/klipper-logo-small.png)](https://www.klipper3d.org/)
