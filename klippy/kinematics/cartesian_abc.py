@@ -149,7 +149,7 @@ class CartKinematicsABC(CartKinematics):
         self.printer.register_event_handler("stepper_enable:motor_off",
                                             self._motor_off)
         
-        # NOTE: Returns max_velocity and max_accel from the toolhead's config.
+        # NOTE: Get "max_velocity" and "max_accel" from the toolhead's config.
         #       Used below as default values.
         max_velocity, max_accel = toolhead.get_max_velocity()
         self.max_z_velocity = config.getfloat('max_z_velocity', max_velocity,
