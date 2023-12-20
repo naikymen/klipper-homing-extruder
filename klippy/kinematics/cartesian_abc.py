@@ -1,11 +1,11 @@
-# Code for handling the kinematics of CoreXY robots
+# Code for handling the kinematics of cartesian robots
 #
 # Copyright (C) 2016-2021  Kevin O'Connor <kevin@koconnor.net>
 # Copyright (C) 2023-2024  Nicolás A. Méndez
 # 
 # This file may be distributed under the terms of the GNU GPLv3 license.
 
-# Type checking without cyclicc import error.
+# Type checking without cyclic import error.
 # See: https://stackoverflow.com/a/39757388
 from __future__ import annotations
 from typing import TYPE_CHECKING

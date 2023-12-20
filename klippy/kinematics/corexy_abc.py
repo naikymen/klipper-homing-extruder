@@ -1,8 +1,10 @@
 # Code for handling the kinematics of corexy robots
 #
 # Copyright (C) 2017-2021  Kevin O'Connor <kevin@koconnor.net>
+# Copyright (C) 2023-2024  Nicolás A. Méndez
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
+
 import logging, math
 import stepper
 from copy import deepcopy
@@ -10,7 +12,6 @@ from copy import deepcopy
 class CoreXYKinematicsABC:
     def __init__(self, toolhead, config, trapq=None,
                  axes_ids=(3, 4, 5), axis_set_letters="ABC"):
-        
         
         # Get the main printer object.
         self.printer = config.get_printer()
