@@ -179,13 +179,19 @@ class CoreXYKinematicsABC:
     
     def _check_endstops(self, move):
         end_pos = move.end_pos
-        for i in (0, 1, 2):
-            if (move.axes_d[i]
-                and (end_pos[i] < self.limits[i][0]
-                     or end_pos[i] > self.limits[i][1])):
+        for i, axis in enumerate(self.axis_config):
+            if (move.axes_d[axis]
+                and (end_pos[axis] < self.limits[i][0]
+                     or end_pos[axis] > self.limits[i][1])):
                 if self.limits[i][0] > self.limits[i][1]:
-                    raise move.move_error("Must home axis first")
+                    # NOTE: self.limits will be "(1.0, -1.0)" when not homed, triggering this.
+                    msg = "\n\n" + f"corexy_abc._check_endstops: Must home axis {self.axis_names[i]} first,"
+                    msg += f"limits={self.limits[i]} end_pos[axis]={end_pos[axis]} "
+                    msg += f"move.axes_d[axis]={move.axes_d[axis]}" + "\n\n"
+                    logging.info(msg)
+                    raise move.move_error(f"Must home axis {self.axis_names[i]} first")
                 raise move.move_error()
+    
     def check_move(self, move):
         limits = self.limits
         xpos, ypos = move.end_pos[:2]
@@ -200,6 +206,7 @@ class CoreXYKinematicsABC:
         z_ratio = move.move_d / abs(move.axes_d[2])
         move.limit_speed(
             self.max_z_velocity * z_ratio, self.max_z_accel * z_ratio)
+    
     def get_status(self, eventtime):
         axes = [a for a, (l, h) in zip("xyz", self.limits) if l <= h]
         return {
