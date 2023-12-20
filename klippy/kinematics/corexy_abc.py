@@ -193,11 +193,17 @@ class CoreXYKinematicsABC:
                 raise move.move_error()
     
     def check_move(self, move):
-        limits = self.limits
-        xpos, ypos = move.end_pos[:2]
-        if (xpos < limits[0][0] or xpos > limits[0][1]
-            or ypos < limits[1][0] or ypos > limits[1][1]):
+        limit_checks = []
+        for i, axis in enumerate(self.axis_config):
+            # TODO: Check if its better to iterate over "self.axis" instead,
+            #       see rationale in favor of "axis_config" above, at "_check_endstops".
+            pos = move.end_pos[axis]
+            limit_checks.append(pos < self.limits[i][0] or pos > self.limits[i][1])
+        if any(limit_checks):
             self._check_endstops(move)
+        
+        # TODO: Update this part of the code to handle 
+        #       the case when Z axis is not configured.
         if not move.axes_d[2]:
             # Normal XY move - use defaults
             return
