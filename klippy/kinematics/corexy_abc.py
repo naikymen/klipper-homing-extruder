@@ -118,9 +118,26 @@ class CoreXYKinematicsABC:
     
     def get_steppers(self):
         return [s for rail in self.rails for s in rail.get_steppers()]
+    
     def calc_position(self, stepper_positions):
-        pos = [stepper_positions[rail.get_name()] for rail in self.rails]
-        return [0.5 * (pos[0] + pos[1]), 0.5 * (pos[0] - pos[1]), pos[2]]
+        # Dummy default position.
+        pos = [0.0 for i in range(3)]
+        # Replace defaults.
+        for i, axis in enumerate(self.axis_config):
+            # e.g.: Get rail "stepper_a", with axis name "A", and axis index "3".
+            # We know that the "axis_config" and "rails" lists match in order
+            # because this is how they were defined during init in this class.
+            rail = self.rails[i]
+            stepper_position = stepper_positions[rail.get_name()]
+            # Axis may be from XYZ, ABC, or higher-indexed triplets.
+            # Get the remainder of the current axis to convert it to an
+            # index between 0 and 2, which can be used to overwrite the
+            # "dummy" position (i.e. 0.0 above).
+            pos[axis % 3] = stepper_position
+        # Convert CoreXY stepper positions to cartesian XY coordinates.
+        xyz_pos = [0.5 * (pos[0] + pos[1]), 0.5 * (pos[0] - pos[1]), pos[2]]
+        return xyz_pos
+    
     def set_position(self, newpos, homing_axes):
         for i, rail in enumerate(self.rails):
             rail.set_position(newpos)
