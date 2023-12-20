@@ -13,6 +13,9 @@ class CoreXYKinematicsABC:
         
         # Get the main printer object.
         self.printer = config.get_printer()
+
+        # Save utilities for later.
+        self.axes_to_xyz = toolhead.axes_to_xyz
         
         # Configured set of axes (indexes) and their letter IDs. Can have length less or equal to 3.
         self.axis_config = deepcopy(axes_ids)   # list of length <= 3: [0, 1, 3], [3, 4], [3, 4, 5], etc.
@@ -154,11 +157,14 @@ class CoreXYKinematicsABC:
     def home(self, homing_state):
         # Each axis is homed independently and in order
         for axis in homing_state.get_axes():
-            rail = self.rails[axis]
+            rail_index = self.axes_to_xyz(axis)
+            self.home_axis(homing_state, axis, self.rails[rail_index])
+    
+    def home_axis(self, homing_state, axis, rail):
             # Determine movement
             position_min, position_max = rail.get_range()
             hi = rail.get_homing_info()
-            homepos = [None, None, None, None]
+            homepos = [None for i in range(self.toolhead_axis_count + 1)]
             homepos[axis] = hi.position_endstop
             forcepos = list(homepos)
             if hi.positive_dir:
@@ -167,8 +173,10 @@ class CoreXYKinematicsABC:
                 forcepos[axis] += 1.5 * (position_max - hi.position_endstop)
             # Perform homing
             homing_state.home_rails([rail], forcepos, homepos)
+    
     def _motor_off(self, print_time):
         self.reset_limits()
+    
     def _check_endstops(self, move):
         end_pos = move.end_pos
         for i in (0, 1, 2):

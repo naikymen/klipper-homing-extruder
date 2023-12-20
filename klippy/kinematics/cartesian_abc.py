@@ -35,7 +35,7 @@ class CartKinematicsABC(CartKinematics):
 
         Args:
             toolhead (_type_): Toolhead-like object.
-            config (_type_): Toolhead-like config object.
+            config (_type_): Klipper config object.
             trapq (_type_, optional): Trapq object. Defaults to None.
             axes_ids (tuple, optional): Configured set of integer axes IDs. Can have length less than 3. Defaults to (3, 4).
             axis_set_letters (str, optional): Configured set of letter axes IDs. Can have length less than 3. Defaults to "AB".
