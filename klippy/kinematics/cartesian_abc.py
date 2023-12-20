@@ -43,7 +43,7 @@ class CartKinematicsABC(CartKinematics):
 
         Args:
             toolhead (_type_): Toolhead-like object.
-            config (_type_): Toolhead-like config object.
+            config (_type_): Klipper config object.
             trapq (_type_, optional): Trapq object. Defaults to None.
             axes_ids (tuple, optional): Configured set of integer axes IDs. Can have length less than 3. Defaults to (3, 4).
             axis_set_letters (str, optional): Configured set of letter axes IDs. Can have length less than 3. Defaults to "AB".
@@ -158,7 +158,7 @@ class CartKinematicsABC(CartKinematics):
         self.printer.register_event_handler("stepper_enable:motor_off",
                                             self._motor_off)
         
-        # NOTE: Returns max_velocity and max_accel from the toolhead's config.
+        # NOTE: Get "max_velocity" and "max_accel" from the toolhead's config.
         #       Used below as default values.
         max_velocity, max_accel = toolhead.get_max_velocity()
         self.max_z_velocity = config.getfloat('max_z_velocity', max_velocity,

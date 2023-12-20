@@ -425,7 +425,7 @@ class ToolHead:
         self.axis_map = {a: i for i, a in enumerate(list(self.ax_letters)[:self.min_axes] + ["E"])}
         
         # TODO: support more kinematics.
-        self.supported_kinematics = ["cartesian_abc", "none"]  # Removed "cartesian" until I fix it.
+        self.supported_kinematics = ["cartesian_abc", "corexy_abc", "none"]  # Removed "cartesian" until I fix it.
         
         logging.info(f"\n\nToolHead: starting setup with axes={self.axis_names} and pos_length={self.pos_length}\n\n")
         
