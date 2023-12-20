@@ -11,9 +11,14 @@ class CoreXYKinematicsABC:
     def __init__(self, toolhead, config, trapq=None,
                  axes_ids=(3, 4, 5), axis_set_letters="ABC"):
         
+        
         # Get the main printer object.
         self.printer = config.get_printer()
 
+        # WARNING: ONLY THE FULL "XYZ" CONFIGURATION IS SUPPORTED IN COREXY FOR NOW.
+        if len(axes_ids) != 3 or axis_set_letters.upper() != "XYZ":
+            raise self.printer.config_error("CoreXYKinematicsABC: Only the full 'XYZ' configuration is supported in corexy for now.")
+        
         # Save utilities for later.
         self.axes_to_xyz = toolhead.axes_to_xyz
         
