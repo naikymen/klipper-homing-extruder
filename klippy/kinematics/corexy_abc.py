@@ -88,7 +88,7 @@ class CoreXYKinematicsABC:
         # NOTE: Iterates over "self.rails" to get all the stepper objects.
         for s in self.get_steppers():
             # NOTE: Each "s" stepper is an "MCU_stepper" object.
-            s.set_trapq(toolhead.get_trapq())
+            s.set_trapq(self.trapq)
             # NOTE: This object is used by "toolhead._update_move_time".
             toolhead.register_step_generator(s.generate_steps)
             # TODO: Check if this "generator" should be appended to 
