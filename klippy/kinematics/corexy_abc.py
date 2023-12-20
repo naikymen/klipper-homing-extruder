@@ -214,7 +214,7 @@ class CoreXYKinematicsABC:
             self.max_z_velocity * z_ratio, self.max_z_accel * z_ratio)
     
     def get_status(self, eventtime):
-        axes = [a for a, (l, h) in zip("xyz", self.limits) if l <= h]
+        axes = [a for a, (l, h) in zip(self.axis_names.lower(), self.limits) if l <= h]
         return {
             'homed_axes': "".join(axes),
             'axis_minimum': self.axes_min,
