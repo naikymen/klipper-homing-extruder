@@ -168,7 +168,7 @@ Then configure the additional ABC steppers, exactly the ones specified in the `a
 
 Examples:
 
-- Find [here](https://gitlab.com/pipettin-bot/forks/firmware/klipper-stack/-/tree/pipetting/printer_data/config?ref_type=heads) for the example configs with an A, B or C in their names.
+- Find [here](https://gitlab.com/pipettin-bot/forks/firmware/klipper-stack/-/tree/pipetting/printer_data/config?ref_type=heads) example configs. Look for folders with an A, B or C in their names.
 
 What works:
 
@@ -199,7 +199,6 @@ samples: 10
 # The rest of the config is standard stuff.
 # See: https://www.klipper3d.org/Config_Reference.html#heater_generic
 # ...
-
 ```
 
 ### Extruder homing
@@ -219,8 +218,8 @@ Any number of extruders can be configured to do homing. This requires:
 # usual homing parameters used by regular steppers:
 # See: https://www.klipper3d.org/Config_Reference.html#stepper
 position_endstop: 0.0
-position_min: 0.0
-position_max: 100.0
+position_min: 0.0    # LIMITS ARE ENFORCED
+position_max: 100.0  # LIMITS ARE ENFORCED
 homing_speed: 25.0
 homing_positive_dir: False  # ADJUST TO MATCH YOUR SETUP
 endstop_pin: gpio15  # REPLACE WITH THE PIN OF **YOUR** HOMING ENDSTOP
