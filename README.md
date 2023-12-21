@@ -41,6 +41,8 @@ the generous support from our [sponsors](https://www.klipper3d.org/Sponsors.html
 
 > Find the associated configuration examples at the following sections.
 
+## Changes and new commands
+
 This fork implements:
 
 - CNC on XYZABCE axes.
@@ -119,15 +121,21 @@ Cheers!
 
 ## Configs
 
-See examples here: [configs-pipetting-bot/configs-mainsail](./config/configs-pipetting-bot/configs-mainsail)
+See examples here: https://gitlab.com/pipettin-bot/forks/firmware/klipper-stack/-/tree/pipetting/printer_data/config
 
-These are meant as reference configs; you _must_ adjust them to match your setup before using them.
+These are meant as _soft_ reference configs; you _must_ adjust them to match your setup before using them.
 
-### Extra ABC axes config
+Pin mappings for the Arduino CNC-Shield (v3.0) have been added to this repo: [generic-cnc-shield-v3.0.cfg](./config/generic-cnc-shield-v3.0.cfg)
 
-See examples here: [labo-robot-pinmap-xyzabc](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap-xyzabc)
+### ABC axes
 
-First configure extra ABC kinematics: [printer.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap-xyzabc/printer.cfg)
+Most of the configuration is "stock". Only the `[printer]` section needs slightly different stuff:
+
+- `kinematics`: You must use an `xxx_abc` kinematic. Only the `cartesian_abc` kinematic has been tested.
+- `kinematics_abc` (new): The ABC set of axes must also use one of the `xxx_abc` kinematics.
+- `axis` (new): This string specifies exactly which axes need to be configured, by their common single-letter name in the CNC world.
+  - There must be at least one stepper in the Klipper configuration for each of these letters (e.g. if `axis` contains `X`, there must be a `[stepper_x]` section).
+  - Partial specification is allowed for the `cartesian_abc` kinematics (e.g. only `XY` and no `Z`)
 
 ```yaml
 [printer]
@@ -142,7 +150,7 @@ kinematics_abc: cartesian_abc
 axis: XYZABC
 ```
 
-Then configure the additional ABC steppers: [printer_steppers_abc.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap-xyzabc/printer_steppers_abc.cfg)
+Then configure the additional ABC steppers, exactly the ones specified in the `axis` parameter. For example, the ABC steppers can be configured just as you would the XYZ:
 
 ```yaml
 [stepper_a]
@@ -158,6 +166,10 @@ Then configure the additional ABC steppers: [printer_steppers_abc.cfg](./config/
 # ...
 ```
 
+Examples:
+
+- Find [here](https://gitlab.com/pipettin-bot/forks/firmware/klipper-stack/-/tree/pipetting/printer_data/config?ref_type=heads) for the example configs with an A, B or C in their names.
+
 What works:
 
 - Movement seems to work :)
@@ -172,73 +184,40 @@ Important TODOs:
 - `SET_KINEMATIC_POSITION` would _sometimes_ cause `MCU 'tools' shutdown: Rescheduled timer in the past`. I find this error hard to reproduce. Maybe its my UNO's fault. Must track down the cause. See: https://github.com/naikymen/klipper-for-cnc/issues/6
 - Consider if it would have been better/simpler to use multiple extruder axes instead of full "cartesian" axes. Adding axes one by one would have been simpler this way. For now, full stepper_a, stepper_b, and stepper_c config sections are mandatory.
 
-### PID sample smoothing config
+### PID sample averaging
 
-Have a look at: [heaters.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap-xyze/heaters.cfg)
+This is meant to mitigate the effects of noisy ADCs in Arduinos, with great success. :)
 
-This is meant to mitigate the effects of noisy ADCs in Arduinos, with great success :)
+The only new parameter is `samples` which can be added to a `heater_generic` section.
 
 ```yaml
-[thermistor thermistor1]
-# A regular thermistor configuration.
-temperature1: 24.5
-resistance1: 83800
-beta: 3950
-
 [heater_generic well_plate_heater]
 # This is the new parameter.
 # Set "samples" to an integer value "n". The last "n" measurements will be 
 # then used to compute the P term (by averaging) and the D term (by regression).
 samples: 10
-# The rest of the config is standard stuff, left here as an example.
-gcode_id: INCUB
-heater_pin: heaters:PB0  # D8
-max_power: 0.5
-sensor_type: thermistor1
-sensor_pin: heaters:PC0 # A0
-pullup_resistor: 67400    # Using 9930 was far noisier.
-smooth_time: 2
-control: pid
-pid_Kp: 7.0
-pid_Ki: 0.008
-pid_Kd: 1.0
-#pwm_cycle_time:
-min_temp: 18
-max_temp: 60
+# The rest of the config is standard stuff.
+# See: https://www.klipper3d.org/Config_Reference.html#heater_generic
+# ...
 
-[verify_heater well_plate_heater]
-# My heater is slow, so the "check_gain_time" value was increased.
-check_gain_time: 90
-#max_error: 120
-#hysteresis: 5
-#heating_gain: 2
-
-[idle_timeout]
-timeout: 600
-gcode:
-  M84
-# TURN_OFF_HEATERS
-# The turn off heaters command was removed here because it interfered with my use case.
-# Make sure to restore the defaults if you use a 3d-printer.
 ```
 
-### Extruder homing config
-
-Main configs:
-- [printer.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap-xyze/printer.cfg)
-- [printer_extruder_p20.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap-xyze/printer_extruder_p20.cfg)
-- [printer_extruder_p200.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap-xyze/printer_extruder_p200.cfg)
-- [home_extruder.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap-xyze/home_extruder.cfg)
+### Extruder homing
 
 Configure your extruders normally, and then add the required homing parameters. See notes below.
 
-At a glance:
+Any number of extruders can be configured to do homing. This requires:
+
+- Adding homing parameters to an `[extruder]` section.
+- Adding a `[extruder_home extruder]` section per home-able extruder, replacing `extruder` with the name of the corresponding extruder section.
 
 ```yaml
 [extruder]
 # ...
-# ...
-# Setup all the usual extruder parameters before these:
+# To enable homing on the extruder, setup all the 
+# usual extruder parameters above, and then add the
+# usual homing parameters used by regular steppers:
+# See: https://www.klipper3d.org/Config_Reference.html#stepper
 position_endstop: 0.0
 position_min: 0.0
 position_max: 100.0
@@ -247,54 +226,51 @@ homing_positive_dir: False  # ADJUST TO MATCH YOUR SETUP
 endstop_pin: gpio15  # REPLACE WITH THE PIN OF **YOUR** HOMING ENDSTOP
 
 [extruder_home extruder]
-# No parameters needed.
-
-[extruder1]
-# ...
-# ...
-# Setup all the usual extruder parameters before these.
-position_endstop: 0.0
-position_min: 0.0
-position_max: 100.0
-homing_speed: 25.0
-homing_positive_dir: False  # ADJUST TO MATCH YOUR SETUP
-endstop_pin: gpio18  # REPLACE WITH THE PIN OF **YOUR** HOMING ENDSTOP
-
-[extruder_home extruder1]
-# No parameters needed.
+# This section is required, but no parameters needed.
 ```
 
-If "homing parameters" are added to an extruder's config, it will need to be homed (or unlocked with `SET_KINEMATIC_POSITION`) before it can be moved, even if the corresponding `[extruder_home extruder]` is not set.
+Usage notes:
 
-Note that the `[extruder]` must have an "endstop_pin" defined for it to be home-able. It is otherwise setup as a "regular" extruder, and a corresponding `[extruder_home extruder]` section will not work as exected. For instance, a `HOME_EXTRUDER EXTRUDER=extruder` command fail with this error: `'MCU_stepper' object has no attribute 'get_endstops'`
+- If "homing parameters" are added to an extruder's config, it will need to be homed (or unlocked with `SET_KINEMATIC_POSITION`) before it can be moved, even if the corresponding `[extruder_home extruder]` is not set.
+- Note that the `[extruder]` must have an "endstop_pin" defined for it to be home-able. It is otherwise setup as a "regular" extruder, and a corresponding `[extruder_home]` section will not work as exected. For instance, a `HOME_EXTRUDER EXTRUDER=extruder` command fail with this error: `'MCU_stepper' object has no attribute 'get_endstops'`
 
-### Single-probe config
+### Single-probe
 
-Config: [probe_G38.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap-xyze/probe_G38.cfg)
+Simple enough. For reference, read: https://www.klipper3d.org/Config_Reference.html#probe
 
 ```yaml
 [probe_G38]
+# See: https://www.klipper3d.org/Config_Reference.html#probe
 recovery_time: 0.4
 pin: gpio19
 z_offset: 0
 ```
 
-Note that `[probe_G38]` is incompatible with `[probe_G38_multi extruder]`.
+Usage notes:
+ 
+- `[probe_G38]` is incompatible with `[probe_G38_multi extruder]`.
 
-### Multi-probing config
+### Multi-probing
 
-Note that this module also implements the regular `G38.n` commands, using the probe section associated to the active extruder's name. 
+Note that this module also implements the regular `G38.n` commands added by `[probe_G38]` (hence the incompatibility), using the `[probe_G38_multi]` section associated to the active extruder by name.
 
-Config: [probe_G38_multi.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap-xyze/probe_G38_multi.cfg)
+For example, this means that:
+
+- `[probe_G38_multi extruder]` will be associated to the main `[extruder]`.
+- `[probe_G38_multi]` sections with names that do not match an extruder will only be usable through the `MULTIPROBE` set of commands.
+
+Example configuration:
 
 ```yaml
 [probe_G38_multi extruder]
+# This probe will be associated to the main [extruder] section.
 recovery_time: 0.0
 pin: ^tools:PC5
 z_offset: 0
 
 
 [probe_G38_multi my_probe]
+# This probe will not be associated to an extruder (unless there is one named "my_probe").
 recovery_time: 0.0
 pin: ^tools:PB1
 z_offset: 0
