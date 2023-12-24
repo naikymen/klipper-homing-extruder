@@ -355,8 +355,8 @@ class CartKinematicsABC(CartKinematics):
             'axis_maximum': self.axes_max,
         }
         
-        # logging.info("getting status for " + self.axis_names + " axes.")
-        # logging.info(pformat(info))
+        # TODO: Clean this up! This code is duplicated in several places,
+        #       At least in the extruder stepper and in the xxx_abc.py kinematics.
             
         # Usual return value.
         if prev is None:
@@ -393,9 +393,6 @@ class CartKinematicsABC(CartKinematics):
                 prev['axis_maximum'] = self.axes_max
             
             res = prev
-
-        # logging.info("got status for " + self.axis_names + " axes.")
-        # logging.info(pformat(res))
 
         return res
 

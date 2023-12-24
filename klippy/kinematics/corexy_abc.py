@@ -248,7 +248,10 @@ class CoreXYKinematicsABC:
             'axis_minimum': self.axes_min,
             'axis_maximum': self.axes_max,
         }
-            
+        
+        # TODO: Clean this up! This code is duplicated in several places,
+        #       At least in the extruder stepper and in the xxx_abc.py kinematics.
+        
         # Usual return value.
         if prev is None:
             res = info

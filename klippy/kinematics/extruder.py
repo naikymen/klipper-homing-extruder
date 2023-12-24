@@ -40,6 +40,8 @@ class ExtruderStepper:
         # NOTE: Setup attributes for limit checks, useful for syringe extruders.
         # TODO: Check if this works as expected for extruder limit checking.
         self.limits = [(1.0, -1.0)]
+        # NOTE: These values are replaced by "self._handle_connect" 
+        #       if the stepper can be homed.
         self.axes_min, self.axes_max = None, None
 
         # Register a handler for turning off the steppers.
@@ -97,14 +99,56 @@ class ExtruderStepper:
                   'smooth_time': self.pressure_advance_smooth_time,
                   'motion_queue': self.motion_queue}
 
-        if self.can_home:
-            axes = [a for a, (l, h) in zip("e", self.limits) if l <= h]
-            status.update({
-                'homed_axes': "".join(axes),
-                'axis_minimum': self.axes_min,
-                'axis_maximum': self.axes_max,
-            })
+        status.update(self.get_limit_status(eventtime))
 
+        return status
+
+    def get_limit_status(self, eventtime, prev=None):
+        # Default output.
+        status=dict()
+        
+        # TODO: Clean this up! This code is duplicated in several places,
+        #       At least in the extruder stepper and in the xxx_abc.py kinematics.
+        
+        # Only enter here if the extruder stepper is home-able.
+        if self.can_home:
+            # Compute the homed axes.
+            homed_axes = [a for a, (l, h) in zip("e", self.limits) if l <= h]
+            homed_axes = "".join(homed_axes)
+            # This is the regular output, when no "previous" info must be updated.
+            if prev is None:
+                status = {
+                    'homed_axes': homed_axes,
+                    'axis_minimum': self.axes_min,
+                    'axis_maximum': self.axes_max,
+                }
+            else:
+                # If there is previous info to update, 
+                # handle the cases one by one.
+                
+                # Concatenate homed axes.
+                if 'homed_axes' in prev.keys():
+                    prev['homed_axes'] += homed_axes
+                else:
+                    prev['homed_axes'] = homed_axes
+                
+                # Update minimum limits.
+                if 'axis_minimum' in prev.keys():
+                    value = getattr(self.axes_min, "e")
+                    prev['axis_minimum'] = prev['axis_minimum']._replace(e=value)
+                else:
+                    prev['axis_minimum'] = self.axes_min
+
+                # Update maximum limits.
+                if 'axis_maximum' in prev.keys():
+                    value = getattr(self.axes_max, "e")
+                    prev['axis_maximum'] = prev['axis_maximum']._replace(e=value)
+                else:
+                    prev['axis_maximum'] = self.axes_max
+                
+                status = prev
+
+        # Done!
         return status
     
     def find_past_position(self, print_time):

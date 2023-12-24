@@ -1352,14 +1352,18 @@ class ToolHead:
         estimated_print_time = self.mcu.estimated_print_time(eventtime)
         
         # TODO: Update get_status to use info from all kinematics.
-        # res = {k: v for k,v in self.kinematics}
         res = dict()
         for kin in self.kinematics.values():
             res.update(kin.get_status(eventtime, res))
-        # logging.info("got status: \n" + pformat(res))
 
-        # TODO: include the extruder here.
+        # NOTE: Include the extruder limits if configured.
+        if self.extruder.get_name():
+            e_stepper = self.extruder.extruder_stepper
+            if e_stepper is not None:
+                e_status = e_stepper.get_limit_status(eventtime, res)
+                res.update(e_status)
         
+        # Add the standard properties.
         res.update({ 'print_time': print_time,
                      'stalls': self.print_stall,
                      'estimated_print_time': estimated_print_time,
