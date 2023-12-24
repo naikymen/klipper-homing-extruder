@@ -99,6 +99,10 @@ This fork implements:
     - Note: for lack of better ideas, the default feedrate for ensuing moves will be reset to the feedrate specified in the arc move, or to the feedrate that was set before the move. This is needed because feedrates are internally adjusted for arc moves involving extra axes (e.g. ABC axes).
     - Limitations: only absolute arc moves are supported (same as upstream Klipper). While feedrate is scaled to compensate for the extra axes, acceleration is not, so you may observe additional "ramping" on the XYZ movement when the extra axes are involved (this is speculative so far).
 
+Other changes:
+
+- Sending the `GET_STATUS_MSG` command will print the result of `toolhead.get_status` to Mainsail's console.
+
 ## Contributing: Interested in CNC stuff for Klipper?
 
 Not-so-minor modifications to Klippy's core were made to accommodate these features. 
