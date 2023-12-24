@@ -8,8 +8,22 @@
 import logging, math
 import stepper
 from copy import deepcopy
+from collections import namedtuple
+from pprint import pformat
 
 class CoreXYKinematicsABC:
+    """CoreXY kinematics for the XYS or ABC axes in the main toolhead class.
+
+    Example config for a corexy toolhead with 3 extra linear axes:
+    
+    [printer]
+    kinematics: corexy_abc
+    axis: XYZABC
+    kinematics_abc: cartesian_abc
+    max_velocity: 5000
+    max_z_velocity: 250
+    max_accel: 1000
+    """ 
     def __init__(self, toolhead, config, trapq=None,
                  axes_ids=(3, 4, 5), axis_set_letters="ABC"):
         
@@ -112,8 +126,14 @@ class CoreXYKinematicsABC:
         # Setup boundary checks
         self.reset_limits()
         ranges = [r.get_range() for r in self.rails]
-        self.axes_min = toolhead.Coord(*[r[0] for r in ranges], e=0.)
-        self.axes_max = toolhead.Coord(*[r[1] for r in ranges], e=0.)
+        # NOTE: Here I've swapped list expansion for dictionary expansion, and omitted "e",
+        #       which will default to "None", and was previously forced to "0.0".
+        #       See "cartesian_abc.py" for further detail.
+        ranges_dict = dict()
+        for a, r in zip(self.axis_names.lower(), ranges):
+            ranges_dict[a] = r
+        self.axes_min: namedtuple = toolhead.Coord(**{k: l for k, (l, h) in ranges_dict.items()})
+        self.axes_max: namedtuple = toolhead.Coord(**{k: h for k, (l, h) in ranges_dict.items()})
     
     def reset_limits(self):
         # self.limits = [(1.0, -1.0)] * len(self.axis_config)
@@ -219,13 +239,53 @@ class CoreXYKinematicsABC:
         move.limit_speed(
             self.max_z_velocity * z_ratio, self.max_z_accel * z_ratio)
     
-    def get_status(self, eventtime):
+    def get_status(self, eventtime, prev: dict=None):
+        # NOTE: If you alter this you should probably
+        #       do so also in the other "abc" kinematics.
         axes = [a for a, (l, h) in zip(self.axis_names.lower(), self.limits) if l <= h]
-        return {
+        info = {
             'homed_axes': "".join(axes),
             'axis_minimum': self.axes_min,
             'axis_maximum': self.axes_max,
         }
+            
+        # Usual return value.
+        if prev is None:
+            res = info
+        # Handle properties one by one.
+        else:
+            
+            # Concatenate homed axes.
+            if 'homed_axes' in prev.keys():
+                prev['homed_axes'] += "".join(axes)
+            else:
+                prev['homed_axes'] = "".join(axes)
+            
+            # Update minimum limits.
+            if 'axis_minimum' in prev.keys():
+                ref_lims: namedtuple = prev['axis_minimum']
+                kin_lims: namedtuple = self.axes_min
+                for axis in self.axis_names.lower():
+                    value = getattr(kin_lims, axis)
+                    ref_lims = ref_lims._replace(**{axis: value})
+                prev['axis_minimum'] = ref_lims
+            else:
+                prev['axis_minimum'] = self.axes_min
+
+            # Update maximum limits.
+            if 'axis_maximum' in prev.keys():
+                ref_lims: namedtuple = prev['axis_maximum']
+                kin_lims: namedtuple = self.axes_max
+                for axis in self.axis_names.lower():
+                    value = getattr(kin_lims, axis)
+                    ref_lims = ref_lims._replace(**{axis: value})
+                prev['axis_maximum'] = ref_lims
+            else:
+                prev['axis_maximum'] = self.axes_max
+            
+            res = prev
+
+        return res
 
 def load_kinematics(toolhead, config, trapq=None, axes_ids=(0, 1, 2), axis_set_letters="XYZ"):
     return CoreXYKinematicsABC(toolhead, config, trapq, axes_ids, axis_set_letters)

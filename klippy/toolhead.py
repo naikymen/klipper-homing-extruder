@@ -7,7 +7,7 @@ import math, logging, importlib
 import mcu, chelper, kinematics.extruder
 import time
 from kinematics.extruder import PrinterExtruder
-
+from pprint import pformat
 # Common suffixes: _d is distance (in mm), _v is velocity (in
 #   mm/second), _v2 is velocity squared (mm^2/s^2), _t is time (in
 #   seconds), _r is ratio (scalar between 0.0 and 1.0)
@@ -512,6 +512,8 @@ class ToolHead:
                                self.cmd_SET_VELOCITY_LIMIT,
                                desc=self.cmd_SET_VELOCITY_LIMIT_help)
         gcode.register_command('M204', self.cmd_M204)
+        gcode.register_command('GET_STATUS_MSG', self.get_status_msg, 
+                               desc=self.cmd_GET_STATUS_MSG_help)
         self.printer.register_event_handler("klippy:shutdown",
                                             self._handle_shutdown)
         # Load some default modules
@@ -1338,12 +1340,26 @@ class ToolHead:
         est_print_time = self.mcu.estimated_print_time(eventtime)
         lookahead_empty = not self.move_queue.queue
         return self.print_time, est_print_time, lookahead_empty
+    
+    cmd_GET_STATUS_MSG_help = "Prettyfied output from toolhead's get_status."
+    def get_status_msg(self, gcmd):
+        curtime = self.printer.get_reactor().monotonic()
+        status = self.get_status(curtime)
+        gcmd.respond_info(pformat(status))
+
     def get_status(self, eventtime):
         print_time = self.print_time
         estimated_print_time = self.mcu.estimated_print_time(eventtime)
+        
         # TODO: Update get_status to use info from all kinematics.
         # res = {k: v for k,v in self.kinematics}
-        res = dict(self.kin.get_status(eventtime))
+        res = dict()
+        for kin in self.kinematics.values():
+            res.update(kin.get_status(eventtime, res))
+        # logging.info("got status: \n" + pformat(res))
+
+        # TODO: include the extruder here.
+        
         res.update({ 'print_time': print_time,
                      'stalls': self.print_stall,
                      'estimated_print_time': estimated_print_time,

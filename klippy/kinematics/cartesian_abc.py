@@ -17,6 +17,8 @@ import stepper
 from . import idex_modes
 from kinematics.cartesian import CartKinematics
 from copy import deepcopy
+from collections import namedtuple
+from pprint import pformat
 
 class CartKinematicsABC(CartKinematics):
     """Kinematics for the ABC axes in the main toolhead class.
@@ -24,9 +26,9 @@ class CartKinematicsABC(CartKinematics):
     Example config:
     
     [printer]
-    kinematics: cartesian
-    axis: XYZ  # Optional: XYZ or XYZABC
-    kinematics_abc: cartesian_abc # Optional
+    kinematics: cartesian_abc
+    axis: XYZABC
+    kinematics_abc: cartesian_abc
     max_velocity: 5000
     max_z_velocity: 250
     max_accel: 1000
@@ -119,11 +121,18 @@ class CartKinematicsABC(CartKinematics):
 
         # Setup boundary checks.
         ranges = [r.get_range() for r in self.rails]
-        # TODO: Check that this works with ABC axes, it will result in 
-        #       "Coord(x=1.0, y=0.0, z=0.0, e=0.0, a=None, b=None, c=None)"
-        #       "Coord(x=-1.0, y=-1.0, z=-1.0, e=0.0, a=None, b=None, c=None)"
-        self.axes_min = toolhead.Coord(*[r[0] for r in ranges], e=0.)
-        self.axes_max = toolhead.Coord(*[r[1] for r in ranges], e=0.)
+        # NOTE: Here I've swapped list expansion for dictionary expansion, and omitted "e",
+        #       which will default to "None", and was previously forced to "0.0".
+        #       For example, for the ABC axes this will result in:
+        #           Coord(x=None, y=None, z=None, a=-1.0, b=-1.0, c=-1.0, e=None)
+        #           Coord(x=None, y=None, z=None, a=30.0, b=30.0, c=30.0, e=None)
+        ranges_dict = dict()
+        for a, r in zip(self.axis_names.lower(), ranges):
+            ranges_dict[a] = r
+        self.axes_min: namedtuple = toolhead.Coord(**{k: l for k, (l, h) in ranges_dict.items()})
+        self.axes_max: namedtuple = toolhead.Coord(**{k: h for k, (l, h) in ranges_dict.items()})
+        # logging.info("Setup self.axes_min: \n" + pformat(self.axes_min))
+        # logging.info("Setup self.axes_max: \n" + pformat(self.axes_max))
         self.dc_module = None
         
         # Check for dual carriage support
@@ -335,16 +344,60 @@ class CartKinematicsABC(CartKinematics):
         #     #     self.max_z_velocity * z_ratio, self.max_z_accel * z_ratio)
         return
     
-    def get_status(self, eventtime):
+    def get_status(self, eventtime, prev: dict=None):
         # NOTE: "zip" will iterate until one of the arguments runs out.
         #       This means that having "XY" axis names is not problematic
         #       when self.limits is length 3, and viceversa.
         axes = [a for a, (l, h) in zip(self.axis_names.lower(), self.limits) if l <= h]
-        return {
+        info = {
             'homed_axes': "".join(axes),
             'axis_minimum': self.axes_min,
             'axis_maximum': self.axes_max,
         }
+        
+        # logging.info("getting status for " + self.axis_names + " axes.")
+        # logging.info(pformat(info))
+            
+        # Usual return value.
+        if prev is None:
+            res = info
+        # Handle properties one by one.
+        else:
+            
+            # Concatenate homed axes.
+            if 'homed_axes' in prev.keys():
+                prev['homed_axes'] += "".join(axes)
+            else:
+                prev['homed_axes'] = "".join(axes)
+            
+            # Update minimum limits.
+            if 'axis_minimum' in prev.keys():
+                ref_lims: namedtuple = prev['axis_minimum']
+                kin_lims: namedtuple = self.axes_min
+                for axis in self.axis_names.lower():
+                    value = getattr(kin_lims, axis)
+                    ref_lims = ref_lims._replace(**{axis: value})
+                prev['axis_minimum'] = ref_lims
+            else:
+                prev['axis_minimum'] = self.axes_min
+
+            # Update maximum limits.
+            if 'axis_maximum' in prev.keys():
+                ref_lims: namedtuple = prev['axis_maximum']
+                kin_lims: namedtuple = self.axes_max
+                for axis in self.axis_names.lower():
+                    value = getattr(kin_lims, axis)
+                    ref_lims = ref_lims._replace(**{axis: value})
+                prev['axis_maximum'] = ref_lims
+            else:
+                prev['axis_maximum'] = self.axes_max
+            
+            res = prev
+
+        # logging.info("got status for " + self.axis_names + " axes.")
+        # logging.info(pformat(res))
+
+        return res
 
 def load_kinematics(toolhead, config, trapq=None, axes_ids=(0, 1, 2), axis_set_letters="XYZ"):
     return CartKinematicsABC(toolhead, config, trapq, axes_ids, axis_set_letters)
