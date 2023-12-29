@@ -473,7 +473,8 @@ class ToolHead:
         # Flush tracking
         self.flush_timer = self.reactor.register_timer(self._flush_handler)
         self.do_kick_flush_timer = True
-        self.last_flush_time = self.need_flush_time = self.step_gen_time = 0.
+        self.last_flush_time = self.last_sg_flush_time = 0.
+        self.need_flush_time = self.step_gen_time = 0.
         # Kinematic step generation scan window time tracking
         self.kin_flush_delay = SDS_CHECK_TIME
         self.kin_flush_times = []
@@ -641,15 +642,16 @@ class ToolHead:
         logging.info(f"\n\nToolHead: _update_move_time triggered with flush_time={flush_time}\n\n")
         flush_time = max(flush_time, self.last_flush_time)
         # Generate steps via itersolve
-        sg_flush_ceil = max(flush_time, self.print_time - self.kin_flush_delay)
-        sg_flush_time = min(flush_time + STEPCOMPRESS_FLUSH_TIME, sg_flush_ceil)
+        sg_flush_want = min(flush_time + STEPCOMPRESS_FLUSH_TIME,
+                            self.print_time - self.kin_flush_delay)
+        sg_flush_time = max(sg_flush_want, flush_time)
         for sg in self.step_generators:
             # NOTE: "self.step_generators" has been populated with "generate_steps" functions,
             #       one per stepper, by each kinematic class (including the extruder class).
             #       Those functions in turn end up calling "ffi_lib.itersolve_generate_steps"
             #       which are meant to "Generate step times for a range of moves on the trapq".
             sg(sg_flush_time)
-        
+        self.last_sg_flush_time = sg_flush_time
         # Free trapq entries that are no longer needed
         # NOTE: Expire moves in the trapq before the "free_time" time.
         #       This is defined as "self.force_flush_time", unless it is
@@ -720,7 +722,7 @@ class ToolHead:
 
         # NOTE: Guessing that the following adds potential delays to 
         #       the MCU time, estimating a "minimum print time".
-        kin_time = max(est_print_time + MIN_KIN_TIME, self.last_flush_time)
+        kin_time = max(est_print_time + MIN_KIN_TIME, self.last_sg_flush_time)
         kin_time += self.kin_flush_delay
         min_print_time = max(est_print_time + BUFFER_TIME_START, kin_time)
 
