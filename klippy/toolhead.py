@@ -134,7 +134,7 @@ class Move:
         # Find max velocity using "approximated centripetal velocity"
         axes_r = self.axes_r
         prev_axes_r = prev_move.axes_r
-        junction_cos_theta = -sum([ axes_r[0] * prev_axes_r[0] for i in range(len(axes_r[:-1])) ])  # NOTE: axes_r comes from axes_d, used is to replace "self.axis_count".
+        junction_cos_theta = -sum([ axes_r[i] * prev_axes_r[i] for i in range(len(axes_r[:-1])) ])  # NOTE: axes_r comes from axes_d, used is to replace "self.axis_count".
         if junction_cos_theta > 0.999999:
             return
         junction_cos_theta = max(junction_cos_theta, -0.999999)
