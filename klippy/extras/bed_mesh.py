@@ -655,6 +655,8 @@ class BedMeshCalibrate:
             raise gcmd.error("Value for parameter 'PROFILE' must be specified")
         self.bedmesh.set_mesh(None)
         self.update_config(gcmd)
+        # NOTE: Requires a printer probe object named 'probe'. 
+        #       See "ProbePointsHelper" at "probe.py".
         self.probe_helper.start_probe(gcmd)
     def probe_finalize(self, offsets, positions):
         x_offset, y_offset, z_offset = offsets

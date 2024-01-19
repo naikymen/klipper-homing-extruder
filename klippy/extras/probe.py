@@ -482,7 +482,9 @@ class ProbePointsHelper:
     def start_probe(self, gcmd):
         manual_probe.verify_no_manual_probe(self.printer)
         # Lookup objects
-        probe = self.printer.lookup_object(self.mcu_probe_name, None)
+        # NOTE: The 'probe' object is a "PrinterProbe" instance, that
+        #       may have been registered, for example, by "bltouch.py".
+        probe = self.printer.lookup_object('probe', None)
         method = gcmd.get('METHOD', 'automatic').lower()
         self.results = []
         def_move_z = self.default_horizontal_move_z

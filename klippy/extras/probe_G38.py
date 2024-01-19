@@ -137,7 +137,7 @@ class ProbeG38:
         # NOTE: configure whether te move will be in absolute or relative coordinates
         #self.absolute_coord = config.getboolean('absolute_coord', True)
 
-        # NOTE: Dummy position vector, populated later.
+        # NOTE: Dummy position vector, overriden later.
         self.last_position = [None, None, None, None]
 
         # NOTE: default probing speed
@@ -370,4 +370,10 @@ class ProbeG38:
 
 
 def load_config(config):
+    # TODO: Consider registering the PrinterProbe object as 'probe' in the printer.
+    #       This would enable our 'probe' to be use by bed_mesh. 
+    #       For example in bltouch the load_config function does this:
+    #           blt = BLTouchEndstopWrapper(config)
+    #           config.get_printer().add_object('probe', probe.PrinterProbe(config, blt))
+    #       I'd need to figure out the equivalent of BLTouchEndstopWrapper to pass.
     return ProbeG38(config)
