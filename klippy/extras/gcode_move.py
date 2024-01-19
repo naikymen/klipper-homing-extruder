@@ -305,7 +305,7 @@ class GCodeMove:
                 #       corresponds to particular given axis.
                 pos_idx = self.axis_map[ax_names[i]]
                 self.base_position[pos_idx] = self.last_position[pos_idx] - offset
-        if not any(offsets):
+        if all([v is None for v in offsets]):
             self.base_position = list(self.last_position)
     
     def cmd_M114(self, gcmd):
