@@ -961,7 +961,7 @@ class ToolHead:
         Args:
             axes (str, optional): A string indicating which axes to return (e.g. "XYE" for X, Y and E). Defaults to None.
         """
-        if axes is not None:
+        if axes is None:
             return list(self.commanded_pos)
         else:
             return self.get_axes(self.commanded_pos, axes)
