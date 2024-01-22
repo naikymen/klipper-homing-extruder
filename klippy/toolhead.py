@@ -1366,7 +1366,7 @@ class ToolHead:
             #       This function calls "trapq_finalize_moves(self.trapq, flush_time)"
             #       on the extruder's trapq.
             # TODO: Whether it will mess with XYZ-only homing or not remains to be tested.
-            self.extruder.update_move_time(flush_time=self.reactor.NEVER)
+            self.extruder.update_move_time(flush_time=self.reactor.NEVER, clear_history_time=0)
         
         # Exit "Drip" state
         self.reactor.update_timer(self.flush_timer, self.reactor.NOW)
