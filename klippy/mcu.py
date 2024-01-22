@@ -91,6 +91,9 @@ class CommandWrapper:
     def send(self, data=(), minclock=0, reqclock=0):
         cmd = self._cmd.encode(data)
         self._serial.raw_send(cmd, minclock, reqclock, self._cmd_queue)
+    def send_wait_ack(self, data=(), minclock=0, reqclock=0):
+        cmd = self._cmd.encode(data)
+        self._serial.raw_send_wait_ack(cmd, minclock, reqclock, self._cmd_queue)
     def get_command_tag(self):
         return self._msgtag
 
@@ -185,24 +188,25 @@ class MCU_trsync:
                 self._home_end_clock = None
                 self._trsync_trigger_cmd.send([self._oid,
                                                self.REASON_PAST_END_TIME])
-    
-    def start(self, print_time, trigger_completion, expire_timeout):
+    def start(self, print_time, report_offset,
+              trigger_completion, expire_timeout):
         # NOTE: called by "home_start" from "MCU_endstop".
-        
         self._trigger_completion = trigger_completion
         self._home_end_clock = None
         clock = self._mcu.print_time_to_clock(print_time)
         expire_ticks = self._mcu.seconds_to_clock(expire_timeout)
         expire_clock = clock + expire_ticks
-        report_ticks = self._mcu.seconds_to_clock(expire_timeout * .4)
-        min_extend_ticks = self._mcu.seconds_to_clock(expire_timeout * .4 * .8)
+        report_ticks = self._mcu.seconds_to_clock(expire_timeout * .3)
+        report_clock = clock + int(report_ticks * report_offset + .5)
+        min_extend_ticks = int(report_ticks * .8 + .5)
         ffi_main, ffi_lib = chelper.get_ffi()
         ffi_lib.trdispatch_mcu_setup(self._trdispatch_mcu, clock, expire_clock,
                                      expire_ticks, min_extend_ticks)
         self._mcu.register_response(self._handle_trsync_state,
                                     "trsync_state", self._oid)
-        self._trsync_start_cmd.send([self._oid, clock, report_ticks,
-                                     self.REASON_COMMS_TIMEOUT], reqclock=clock)
+        self._trsync_start_cmd.send([self._oid, report_clock, report_ticks,
+                                     self.REASON_COMMS_TIMEOUT],
+                                    reqclock=report_clock)
         for s in self._steppers:
             self._stepper_stop_cmd.send([s.get_oid(), self._oid])
         self._trsync_set_timeout_cmd.send([self._oid, expire_clock],
@@ -295,9 +299,11 @@ class MCU_endstop:
         expire_timeout = TRSYNC_TIMEOUT
         if len(self._trsyncs) == 1:
             expire_timeout = TRSYNC_SINGLE_MCU_TIMEOUT
-        for trsync in self._trsyncs:
+        for i, trsync in enumerate(self._trsyncs):
+            report_offset = float(i) / len(self._trsyncs)
             # Calls the "start" method from "MCU_trsync"
-            trsync.start(print_time, self._trigger_completion, expire_timeout)
+            trsync.start(print_time, report_offset,
+                         self._trigger_completion, expire_timeout)
         etrsync = self._trsyncs[0]
         ffi_main, ffi_lib = chelper.get_ffi()
         ffi_lib.trdispatch_start(self._trdispatch, etrsync.REASON_HOST_REQUEST)
@@ -983,7 +989,7 @@ class MCU:
         self._reserved_move_slots += 1
     def register_flush_callback(self, callback):
         self._flush_callbacks.append(callback)
-    def flush_moves(self, print_time):
+    def flush_moves(self, print_time, clear_history_time):
         if self._steppersync is None:
             return
         
@@ -992,13 +998,12 @@ class MCU:
             return
         for cb in self._flush_callbacks:
             cb(print_time, clock)
-        
+        clear_history_clock = \
+            max(0, self.print_time_to_clock(clear_history_time))
         # NOTE: steppersync_flush: find and transmit any scheduled steps 
         #       prior to the given 'clock' (see stepcompress.c).
-        ret = self._ffi_lib.steppersync_flush(self._steppersync, clock)
-        
-        # NOTE: Sometimes causing "invalid sequence" error in stepcompress,
-        #       due to an "i=0" argument in "o=11 i=0 c=70 a=0".
+        ret = self._ffi_lib.steppersync_flush(self._steppersync, clock,
+                                              clear_history_clock)
         if ret:
             raise error("Internal error in MCU '%s' stepcompress"
                         % (self._name,))
