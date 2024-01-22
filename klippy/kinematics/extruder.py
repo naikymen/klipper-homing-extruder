@@ -505,7 +505,7 @@ class PrinterExtruder:
         start_v = move.start_v * axis_r
         cruise_v = move.cruise_v * axis_r
         can_pressure_advance = False
-        if axis_r > 0. and (move.axes_d[0] or move.axes_d[1] or move.axes_d[3] or move.axes_d[4] or move.axes_d[5]):
+        if axis_r > 0. and any(move.axes_d[:-1]):
             can_pressure_advance = True
         # Queue movement (x is extruder movement, y is pressure advance flag)
         # NOTE: the following "self.trapq" was setup during this class's init.
