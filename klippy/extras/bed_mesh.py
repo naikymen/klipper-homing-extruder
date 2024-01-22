@@ -4,6 +4,15 @@
 # Copyright (C) 2018-2019 Eric Callahan <arksine.code@gmail.com>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
+# Type checking without cyclic import error.
+# See: https://stackoverflow.com/a/39757388
+
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from ..configfile import ConfigWrapper
+    from ..toolhead import ToolHead
+
 import logging, math, json, collections
 from . import probe
 
@@ -86,14 +95,15 @@ def parse_gcmd_coord(gcmd, name):
 
 class BedMesh:
     FADE_DISABLE = 0x7FFFFFFF
-    def __init__(self, config):
+    def __init__(self, config: ConfigWrapper):
         self.printer = config.get_printer()
         self.printer.register_event_handler("klippy:connect",
                                             self.handle_connect)
         self.last_position = [0., 0., 0., 0.]
         self.bmc = BedMeshCalibrate(config, self)
         self.z_mesh = None
-        self.toolhead = None
+        # NOTE: Dummy "toolhead". Overriden by "handle_connect".
+        self.toolhead: ToolHead = None
         self.horizontal_move_z = config.getfloat('horizontal_move_z', 5.)
         self.fade_start = config.getfloat('fade_start', 1.)
         self.fade_end = config.getfloat('fade_end', 0.)
@@ -127,7 +137,7 @@ class BedMesh:
         # initialize status dict
         self.update_status()
     def handle_connect(self):
-        self.toolhead = self.printer.lookup_object('toolhead')
+        self.toolhead: ToolHead = self.printer.lookup_object('toolhead')
         self.bmc.print_generated_points(logging.info)
     def set_mesh(self, mesh):
         if mesh is not None and self.fade_end != self.FADE_DISABLE:
@@ -286,7 +296,7 @@ class ZrefMode:
 
 class BedMeshCalibrate:
     ALGOS = ['lagrange', 'bicubic']
-    def __init__(self, config, bedmesh):
+    def __init__(self, config, bedmesh: BedMesh):
         self.printer = config.get_printer()
         self.orig_config = {'radius': None, 'origin': None}
         self.radius = self.origin = None
@@ -310,7 +320,7 @@ class BedMeshCalibrate:
         self.zero_reference_mode = ZrefMode.DISABLED
         self.faulty_regions = []
         self.substituted_indices = collections.OrderedDict()
-        self.bedmesh = bedmesh
+        self.bedmesh: BedMesh = bedmesh
         self.mesh_config = collections.OrderedDict()
         self._init_mesh_config(config)
         self._generate_points(config.error)
@@ -1172,11 +1182,11 @@ class ZMesh:
 
 
 class ProfileManager:
-    def __init__(self, config, bedmesh):
+    def __init__(self, config, bedmesh: BedMesh):
         self.name = config.get_name()
         self.printer = config.get_printer()
         self.gcode = self.printer.lookup_object('gcode')
-        self.bedmesh = bedmesh
+        self.bedmesh: BedMesh = bedmesh
         self.profiles = {}
         self.current_profile = ""
         self.incompatible_profiles = []

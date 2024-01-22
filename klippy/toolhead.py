@@ -3,6 +3,15 @@
 # Copyright (C) 2016-2021  Kevin O'Connor <kevin@koconnor.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
+
+# Type checking without cyclic import error.
+# See: https://stackoverflow.com/a/39757388
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .klippy import Printer
+    from .configfile import ConfigWrapper
+
 import math, logging, importlib
 import mcu, chelper, kinematics.extruder
 import time
@@ -402,7 +411,7 @@ class ToolHead:
       - The "checks" still have the XYZ logic.
       - Homing is not implemented for ABC.
     """
-    def __init__(self, config):
+    def __init__(self, config: ConfigWrapper):
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
         self.axis_names = config.get('axis', 'XYZ')  # e.g. "XYZ", "XYZABC", "XY".
         self.axis_count = len(self.axis_names)
@@ -421,7 +430,7 @@ class ToolHead:
         # self.pos_length = self.axis_count + 1
         # NOTE: The value of this attriute must match the one at "gcode_move.py".
         
-        # Dictionary to map axes to their indexes in the position vector.
+        # Dictionary to map axes to their indexes in the position vector "self.commanded_pos".
         self.axis_map = {a: i for i, a in enumerate(list(self.ax_letters)[:self.min_axes] + ["E"])}
         
         # TODO: support more kinematics.
@@ -429,7 +438,7 @@ class ToolHead:
         
         logging.info(f"\n\nToolHead: starting setup with axes={self.axis_names} and pos_length={self.pos_length}\n\n")
         
-        self.printer = config.get_printer()
+        self.printer: Printer = config.get_printer()
         self.reactor = self.printer.get_reactor()
         self.all_mcus = [
             m for n, m in self.printer.lookup_objects(module='mcu')]

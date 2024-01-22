@@ -11,6 +11,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from extras.homing import Homing
+    from ..configfile import ConfigWrapper
+    from ..toolhead import ToolHead
 
 import logging
 import stepper
@@ -34,11 +36,12 @@ class CartKinematicsABC(CartKinematics):
     max_accel: 1000
     
     TODO:
+      - [ ] Remove CartKinematics class inheritance. 
       - [ ] The "checks" still have the XYZ logic.
       - [x] Homing is not implemented for ABC.
       - [ ] Merge the changes for the IDEX stuff.
     """    
-    def __init__(self, toolhead, config, trapq=None,
+    def __init__(self, toolhead: ToolHead, config: ConfigWrapper, trapq=None,
                  axes_ids=(3, 4), axis_set_letters="AB"):
         """Cartesian kinematics.
         

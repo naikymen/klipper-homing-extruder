@@ -3,6 +3,14 @@
 # Copyright (C) 2016-2021  Kevin O'Connor <kevin@koconnor.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
+
+# Type checking without cyclic import error.
+# See: https://stackoverflow.com/a/39757388
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .klippy import Printer
+
 import sys, os, glob, re, time, logging, configparser, io
 
 error = configparser.Error
@@ -12,7 +20,7 @@ class sentinel:
 
 class ConfigWrapper:
     error = configparser.Error
-    def __init__(self, printer, fileconfig, access_tracking, section):
+    def __init__(self, printer: Printer, fileconfig, access_tracking, section):
         self.printer = printer
         self.fileconfig = fileconfig
         self.access_tracking = access_tracking
@@ -139,7 +147,7 @@ AUTOSAVE_HEADER = """
 """
 
 class PrinterConfig:
-    def __init__(self, printer):
+    def __init__(self, printer: Printer):
         self.printer = printer
         self.autosave = None
         self.deprecated = {}
