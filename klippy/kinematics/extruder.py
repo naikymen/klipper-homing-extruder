@@ -479,7 +479,7 @@ class PrinterExtruder:
 
 
     def calc_junction(self, prev_move, move):
-        diff_r = move.axes_r[3] - prev_move.axes_r[3]
+        diff_r = move.axes_r[-1] - prev_move.axes_r[-1]
         if diff_r:
             return (self.instant_corner_v / abs(diff_r))**2
         return move.max_cruise_v2
@@ -500,12 +500,12 @@ class PrinterExtruder:
         #       - start_pos=self.commanded_pos:  list of "initial" coordinates [0.0, 0.0, 0.0, 0.0]
         #       - end_pos=newpos:                ???
         #       - speed=speed:                   ???
-        axis_r = move.axes_r[3]
+        axis_r = move.axes_r[-1]
         accel = move.accel * axis_r
         start_v = move.start_v * axis_r
         cruise_v = move.cruise_v * axis_r
         can_pressure_advance = False
-        if axis_r > 0. and (move.axes_d[0] or move.axes_d[1]):
+        if axis_r > 0. and (move.axes_d[0] or move.axes_d[1] or move.axes_d[3] or move.axes_d[4] or move.axes_d[5]):
             can_pressure_advance = True
         # Queue movement (x is extruder movement, y is pressure advance flag)
         # NOTE: the following "self.trapq" was setup during this class's init.
@@ -516,11 +516,11 @@ class PrinterExtruder:
         #       are coordinated by print_time at "_process_moves" (see: toolhead.py).
         self.trapq_append(self.trapq, print_time,
                           move.accel_t, move.cruise_t, move.decel_t,
-                          move.start_pos[3], 0., 0.,
+                          move.start_pos[-1], 0., 0.,
                           1., can_pressure_advance, 0.,
                           start_v, cruise_v, accel)
-        self.last_position = move.end_pos[3]
-        logging.info(f"\n\nextruder: move.end_pos[3]={str(move.end_pos[3])}\n\n")
+        self.last_position = move.end_pos[-1]
+        logging.info(f"\n\nextruder: move.end_pos[-1]={str(move.end_pos[-1])}\n\n")
     def find_past_position(self, print_time):
         if self.extruder_stepper is None:
             return 0.
