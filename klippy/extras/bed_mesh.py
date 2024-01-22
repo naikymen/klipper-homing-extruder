@@ -824,7 +824,9 @@ class BedMeshCalibrate:
 class MoveSplitter:
     def __init__(self, config: ConfigWrapper, gcode):
         self.printer = config.get_printer()
-        self.toolhead: ToolHead = self.printer.lookup_object('toolhead')
+        self.printer.register_event_handler("klippy:connect",
+                                            self.handle_connect)
+        self.toolhead: ToolHead = None
         self.split_delta_z = config.getfloat(
             'split_delta_z', .025, minval=0.01)
         self.move_check_distance = config.getfloat(
@@ -832,6 +834,8 @@ class MoveSplitter:
         self.z_mesh = None
         self.fade_offset = 0.
         self.gcode = gcode
+    def handle_connect(self):
+        self.toolhead: ToolHead = self.printer.lookup_object('toolhead')
     def initialize(self, mesh, fade_offset):
         self.z_mesh: ZMesh = mesh
         self.fade_offset = fade_offset

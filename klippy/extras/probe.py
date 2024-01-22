@@ -449,7 +449,7 @@ class ProbeEndstopWrapper:
 class ProbePointsHelper:
     def __init__(self, config: ConfigWrapper, finalize_callback, default_points=None):
         self.printer = config.get_printer()
-        self.toolhead: ToolHead = self.printer.lookup_object('toolhead')
+        self.toolhead: ToolHead = None
         self.finalize_callback = finalize_callback
         self.probe_points = default_points
         self.name = config.get_name()
@@ -470,6 +470,11 @@ class ProbePointsHelper:
         # TODO: Consider extending this to multi-axis klipper.
         self.probe_offsets = (0., 0., 0.)
         self.results = []
+        # Update toolhead attribute when available.
+        self.printer.register_event_handler("klippy:connect",
+                                            self._handle_connect)
+    def _handle_connect(self):
+            self.toolhead = self.printer.lookup_object('toolhead')
     def minimum_points(self,n):
         if len(self.probe_points) < n:
             raise self.printer.config_error(
