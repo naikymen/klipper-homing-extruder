@@ -878,7 +878,7 @@ class MoveSplitter:
                     next_z = self._calc_z_offset(self.current_pos)
                     if abs(next_z - self.z_offset) >= self.split_delta_z:
                         self.z_offset = next_z
-                        curr_z = self.toolhead.get_axes(self.current_pos, "Z")
+                        curr_z = self.current_pos[self.toolhead.axis_map["Z"]]
                         return self.toolhead.update_axes(self.current_pos, Z=curr_z+self.z_offset)
             # end of move reached
             self.current_pos[:] = self.next_pos
