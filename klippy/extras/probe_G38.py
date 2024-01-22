@@ -4,6 +4,18 @@
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 
+# Type checking without cyclic import error.
+# See: https://stackoverflow.com/a/39757388
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from ..klippy import Printer
+    from ..configfile import ConfigWrapper
+    from ..toolhead import ToolHead
+    from ..gcode import GCodeDispatch, GCodeCommand
+    from .homing import PrinterHoming
+    from .gcode_move import GCodeMove
+
 # TODO: check if this is useful.
 # from . import manual_probe
 
@@ -13,7 +25,7 @@ from . import probe
 
 
 class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
-    def __init__(self, config):
+    def __init__(self, config: ConfigWrapper):
         
         # Instantiate the base "ProbeEndstopWrapper" class, as usual.
         # The parent class only reads from the "config" the "pin" parameter,
@@ -48,7 +60,7 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
         # NOTE: borrowed code from "smart_effector", trying to
         #       avoid the "Probe triggered prior to movement" error.
         if self.recovery_time:
-            toolhead = self.printer.lookup_object('toolhead')
+            toolhead: ToolHead = self.printer.lookup_object('toolhead')
             toolhead.dwell(self.recovery_time)
 
     # NOTE: Register XY steppers in the endstop too.
@@ -58,14 +70,16 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
         logging.info(f"\n\n" + "ProbeEndstopWrapperG38._handle_mcu_identify activated (XYZE axes)" + "\n\n")
 
         # NOTE: Register XYZ steppers.
-        kin = self.printer.lookup_object('toolhead').get_kinematics()
-        for stepper in kin.get_steppers():
-            # NOTE: get_steppers returns all "PrinterStepper"/"MCU_stepper" objects in the kinematic.
-            if stepper.is_active_axis('x') or stepper.is_active_axis('y') or stepper.is_active_axis('z'):
-                self.add_stepper(stepper)
+        toolhead: ToolHead = self.printer.lookup_object('toolhead')
+        kin = toolhead.get_kinematics()
+        if kin is not None:
+            for stepper in kin.get_steppers():
+                # NOTE: get_steppers returns all "PrinterStepper"/"MCU_stepper" objects in the kinematic.
+                if stepper.is_active_axis('x') or stepper.is_active_axis('y') or stepper.is_active_axis('z'):
+                    self.add_stepper(stepper)
                 
         # NOTE: Register ABC steppers too.
-        kin_abc = self.printer.lookup_object('toolhead').get_kinematics_abc()
+        kin_abc = toolhead.get_kinematics_abc()
         if kin_abc is not None:
             for stepper in kin_abc.get_steppers():
                 # NOTE: get_steppers returns all "PrinterStepper"/"MCU_stepper" objects in the kinematic.
@@ -105,7 +119,7 @@ class ProbeG38:
       - Added "set_position_e" to the toolhead.
 
     """
-    def __init__(self, config, mcu_probe_name='probe'):
+    def __init__(self, config: ConfigWrapper, mcu_probe_name='probe'):
         # NOTE: because the "config" is passed to PrinterProbe and ProbeEndstopWrapper,
         #       it will require all the parameters that they require, plus the ones specific
         #       to this class.
@@ -147,7 +161,7 @@ class ProbeG38:
         self.recovery_time = config.getfloat('recovery_time', 0.4, minval=0.)
 
         # NOTE: Register commands
-        self.gcode = self.printer.lookup_object('gcode')
+        self.gcode: GCodeDispatch = self.printer.lookup_object('gcode')
         
         # NOTE: From LinuxCNC: https://linuxcnc.org/docs/2.6/html/gcode/gcode.html
         #       - G38.2 - Probe toward workpiece, stop on contact, signal error if failure.
@@ -189,12 +203,12 @@ class ProbeG38:
 
     # Main probe command
     cmd_PROBE_G38_2_help = "G38.2 Probe toward workpiece, stop on contact, signal error if failure."
-    def cmd_PROBE_G38_2(self, gcmd, error_out=True, trigger_invert=True):
+    def cmd_PROBE_G38_2(self, gcmd: GCodeCommand, error_out=True, trigger_invert=True):
         # Error on failure, do not invert probe logic.
 
         # NOTE: Get the toolhead's last position.
         #       This will be updated below.
-        toolhead = self.printer.lookup_object('toolhead')
+        toolhead: ToolHead = self.printer.lookup_object('toolhead')
         self.last_position = toolhead.get_position()
 
         # NOTE: get the name of the active extruder.
@@ -203,7 +217,7 @@ class ProbeG38:
 
         # NOTE: configure whether te move will be in absolute 
         #       or relative coordinates. Respect the G90/G91 setting.
-        gcode_move = self.printer.lookup_object('gcode_move')
+        gcode_move: GCodeMove = self.printer.lookup_object('gcode_move')
         self.absolute_coord = gcode_move.absolute_coord
         self.absolute_extrude = gcode_move.absolute_extrude
 
@@ -273,17 +287,17 @@ class ProbeG38:
                        trigger_invert=trigger_invert,
                        probe_axes=probe_axes)
 
-    def probe_g38(self, pos, speed, error_out, gcmd, trigger_invert, probe_axes=None):
+    def probe_g38(self, pos, speed, error_out, gcmd: GCodeCommand, trigger_invert, probe_axes=None):
         # NOTE: code copied from "probe._probe".
 
-        toolhead = self.printer.lookup_object('toolhead')
+        toolhead: ToolHead = self.printer.lookup_object('toolhead')
 
         # TODO: rethink if homing is neccessary for homing.
         # curtime = self.printer.get_reactor().monotonic()
         # if 'z' not in toolhead.get_status(curtime)['homed_axes']:
         #     raise self.printer.command_error("Must home before probe")
         
-        phoming = self.printer.lookup_object('homing')
+        phoming: PrinterHoming = self.printer.lookup_object('homing')
 
         # NOTE: This is no longer necessary, because I've passed
         #       the "pos" argument from "cmd_PROBE_G38_2".
@@ -364,9 +378,7 @@ class ProbeG38:
             self.gcode.respond_info(status_prefix + " at " + msg)
             # raise self.printer.command_error(f"Can't respond with info for toolhead.axis_count={toolhead.axis_count}")
         
-        # TODO: find out why it only returns the fourth (extruder) position.
-        # TODO: update this to work with 6-axis klippy.
-        return epos[:3]
+        return epos[:-1]
 
 
 def load_config(config):

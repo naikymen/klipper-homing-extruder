@@ -956,8 +956,41 @@ class ToolHead:
         return self.reactor.NEVER
     
     # Movement commands
-    def get_position(self):
-        return list(self.commanded_pos)
+    def get_position(self, axes:str=None):
+        """Returns the position vector of the toolhead.
+        Args:
+            axes (str, optional): A string indicating which axes to return (e.g. "XYE" for X, Y and E). Defaults to None.
+        """
+        if axes is not None:
+            return list(self.commanded_pos)
+        else:
+            return self.get_axes(self.commanded_pos, axes)
+    
+    def get_axes(self, pos: list, axes: str):
+        """Subsets a toolhead position vector by axes letters.
+
+        Args:
+            axes (str): A string indicating which axes to return (e.g. "XYE" for X, Y and E). Defaults to None.
+        """
+        return [pos[self.axis_map[a]] for a in axes]
+    
+    def get_axes_idxs(self, axes: str):
+        return [self.axis_map[a] for a in axes]
+
+    def update_axes(self, pos: list, **kwargs):
+        """Update values in a position vector by axis letter ID.
+
+        Args:
+            pos (list): Toolhead-like position vector.
+            kwargs: Pairs of axis letters and values (e.g. X=1, Z=3) which will be updated.
+        """
+        pos = pos.copy()
+        for k, v in kwargs.items():
+            # Get the axis' position index.
+            a = self.axis_map[k]
+            # Update the axis' value.
+            pos[a] = v
+        return pos
     
     def axes_to_xyz(self, axes):
         """Convert ABC axis IDs to XYZ IDs (i.e. 3,4,5 to 0,1,2).
@@ -982,6 +1015,12 @@ class ToolHead:
     
     def get_elements(self, toolhead_pos, axes):
         return [toolhead_pos[axis] for axis in axes]
+    
+    def make_coords(self, default=None, **kwargs):
+        coords = [default for i in range(self.pos_length)]
+        for k, v in kwargs.items():
+            coords[self.axis_map[k]] = v
+        return coords
     
     def set_position(self, newpos, homing_axes=()):
         logging.info("\n\n" + f"toolhead.set_position: setting newpos={newpos} and homing_axes={homing_axes}\n\n")
@@ -1140,6 +1179,7 @@ class ToolHead:
         self.move_queue.add_move(move)
         if self.print_time > self.need_check_pause:
             self._check_pause()
+    
     def manual_move(self, coord, speed):
         # NOTE: the "manual_move" command interprets "None" values
         #       as the latest (commanded) coordinates.
@@ -1169,6 +1209,7 @@ class ToolHead:
         next_print_time = self.get_last_move_time() + max(0., delay)
         self._advance_move_time(next_print_time)
         self._check_pause()
+    
     def wait_moves(self):
         # NOTE: This function waits until print_time is in sync with the present
         #       time (i.e. the current time of the host computer). The waiting
@@ -1396,7 +1437,7 @@ class ToolHead:
         elif axes == "ABC":
             return self.kinematics[axes]
         else:
-            logging.info("No kinematics matched to axes={axes} returning toolhead.kin (legacy behaviour)")
+            logging.warning(f"get_kinematics: No kinematics matched to axes={axes} returning 'toolhead.kin' (legacy behaviour).")
             return self.kin
     def get_kinematics_abc(self):
         # TODO: update the rest of the code to use "get_trapq" with "axes" instead.
@@ -1408,7 +1449,7 @@ class ToolHead:
         elif axes == "ABC":
             return self.kinematics[axes].trapq
         else:
-            logging.info("No kinematics matched to axes={axes} returning toolhead.trapq (legacy behaviour)")
+            logging.info(f"get_trapq: No kinematics matched to axes={axes} returning 'toolhead.trapq' (legacy behaviour).")
             return self.trapq
     def get_abc_trapq(self):
         # TODO: update the rest of the code to use "get_trapq" with "axes" instead.

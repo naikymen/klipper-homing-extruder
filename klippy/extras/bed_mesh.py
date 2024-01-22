@@ -99,6 +99,7 @@ class BedMesh:
         self.printer = config.get_printer()
         self.printer.register_event_handler("klippy:connect",
                                             self.handle_connect)
+        # NOTE: Dummy "last_position". Overriden by "handle_connect".
         self.last_position = [0., 0., 0., 0.]
         self.bmc = BedMeshCalibrate(config, self)
         self.z_mesh = None
@@ -138,6 +139,8 @@ class BedMesh:
         self.update_status()
     def handle_connect(self):
         self.toolhead: ToolHead = self.printer.lookup_object('toolhead')
+        # NOTE: Overwrite dummy "last_position" to match the toolhead's vector.
+        self.last_position = [0.0 for i in range(self.toolhead.pos_length)]
         self.bmc.print_generated_points(logging.info)
     def set_mesh(self, mesh):
         if mesh is not None and self.fade_end != self.FADE_DISABLE:
@@ -189,7 +192,7 @@ class BedMesh:
             self.last_position[2] -= self.fade_target
         else:
             # return current position minus the current z-adjustment
-            x, y, z, e = self.toolhead.get_position()
+            x, y, z, e = self.toolhead.get_position("XYZE")
             max_adj = self.z_mesh.calc_z(x, y)
             factor = 1.
             z_adj = max_adj - self.fade_target
@@ -207,16 +210,17 @@ class BedMesh:
             self.last_position[:] = [x, y, z - final_z_adj, e]
         return list(self.last_position)
     def move(self, newpos, speed):
-        factor = self.get_z_factor(newpos[2])
+        new_z = newpos[self.toolhead.axis_map["Z"]]
+        factor = self.get_z_factor(new_z)
         if self.z_mesh is None or not factor:
             # No mesh calibrated, or mesh leveling phased out.
-            x, y, z, e = newpos
             if self.log_fade_complete:
                 self.log_fade_complete = False
                 logging.info(
                     "bed_mesh fade complete: Current Z: %.4f fade_target: %.4f "
-                    % (z, self.fade_target))
-            self.toolhead.move([x, y, z + self.fade_target, e], speed)
+                    % (new_z, self.fade_target))
+            movepos = self.toolhead.update_axes(newpos, Z = new_z + self.fade_target)
+            self.toolhead.move(movepos, speed)
         else:
             self.splitter.build_move(self.last_position, newpos, factor)
             while not self.splitter.traverse_complete:
@@ -669,6 +673,9 @@ class BedMeshCalibrate:
         #       See "ProbePointsHelper" at "probe.py".
         self.probe_helper.start_probe(gcmd)
     def probe_finalize(self, offsets, positions):
+        """
+        NOTE: This method is passed to "probe.ProbePointsHelper" as "finalize_callback".
+        """
         x_offset, y_offset, z_offset = offsets
         positions = [[round(p[0], 2), round(p[1], 2), p[2]]
                      for p in positions]
@@ -815,7 +822,9 @@ class BedMeshCalibrate:
 
 
 class MoveSplitter:
-    def __init__(self, config, gcode):
+    def __init__(self, config: ConfigWrapper, gcode):
+        self.printer = config.get_printer()
+        self.toolhead: ToolHead = self.printer.lookup_object('toolhead')
         self.split_delta_z = config.getfloat(
             'split_delta_z', .025, minval=0.01)
         self.move_check_distance = config.getfloat(
@@ -824,7 +833,7 @@ class MoveSplitter:
         self.fade_offset = 0.
         self.gcode = gcode
     def initialize(self, mesh, fade_offset):
-        self.z_mesh = mesh
+        self.z_mesh: ZMesh = mesh
         self.fade_offset = fade_offset
     def build_move(self, prev_pos, next_pos, factor):
         self.prev_pos = tuple(prev_pos)
@@ -834,11 +843,13 @@ class MoveSplitter:
         self.z_offset = self._calc_z_offset(prev_pos)
         self.traverse_complete = False
         self.distance_checked = 0.
-        axes_d = [self.next_pos[i] - self.prev_pos[i] for i in range(4)]
-        self.total_move_length = math.sqrt(sum([d*d for d in axes_d[:3]]))
+        axes_d = [ f - i for f, i in zip(self.next_pos, self.prev_pos) ]
+        # NOTE: Consider all displacement distances except the extruder's.
+        self.total_move_length = math.sqrt(sum([d*d for d in axes_d[:-1]]))
         self.axis_move = [not isclose(d, 0., abs_tol=1e-10) for d in axes_d]
     def _calc_z_offset(self, pos):
-        z = self.z_mesh.calc_z(pos[0], pos[1])
+        x, y = self.toolhead.get_axes(pos, "XY")
+        z = self.z_mesh.calc_z(x, y)
         offset = self.fade_offset
         return self.z_factor * (z - offset) + offset
     def _set_next_move(self, distance_from_prev):
@@ -847,13 +858,14 @@ class MoveSplitter:
             raise self.gcode.error(
                 "bed_mesh: Slice distance is negative "
                 "or greater than entire move length")
-        for i in range(4):
+        for i in range(len(self.axis_move)):
             if self.axis_move[i]:
                 self.current_pos[i] = lerp(
                     t, self.prev_pos[i], self.next_pos[i])
     def split(self):
         if not self.traverse_complete:
-            if self.axis_move[0] or self.axis_move[1]:
+            x_move, y_move = self.toolhead.get_axes(self.axis_move, "XY")
+            if x_move or y_move:
                 # X and/or Y axis move, traverse if necessary
                 while self.distance_checked + self.move_check_distance \
                         < self.total_move_length:
@@ -862,15 +874,15 @@ class MoveSplitter:
                     next_z = self._calc_z_offset(self.current_pos)
                     if abs(next_z - self.z_offset) >= self.split_delta_z:
                         self.z_offset = next_z
-                        return self.current_pos[0], self.current_pos[1], \
-                            self.current_pos[2] + self.z_offset, \
-                            self.current_pos[3]
+                        curr_z = self.toolhead.get_axes(self.current_pos, "Z")
+                        return self.toolhead.update_axes(self.current_pos, Z=curr_z+self.z_offset)
             # end of move reached
             self.current_pos[:] = self.next_pos
             self.z_offset = self._calc_z_offset(self.current_pos)
             # Its okay to add Z-Offset to the final move, since it will not be
             # used again.
-            self.current_pos[2] += self.z_offset
+            z_idx = self.toolhead.axis_map["Z"]
+            self.current_pos[z_idx] += self.z_offset
             self.traverse_complete = True
             return self.current_pos
         else:
