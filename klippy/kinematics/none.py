@@ -6,7 +6,7 @@
 
 class NoneKinematics:
     def __init__(self, toolhead, config, trapq):
-        self.axes_minmax = toolhead.Coord(0., 0., 0., e=0.)
+        self.axes_min = self.axes_max = toolhead.Coord(0., 0., 0., e=0.)
         self.axis = [None, None, None]
         self.trapq = trapq
     def get_steppers(self):
@@ -22,8 +22,8 @@ class NoneKinematics:
     def get_status(self, eventtime):
         return {
             'homed_axes': '',
-            'axis_minimum': self.axes_minmax,
-            'axis_maximum': self.axes_minmax,
+            'axis_minimum': self.axes_min,
+            'axis_maximum': self.axes_max,
         }
 
 def load_kinematics(toolhead, config, trapq, **kwargs):
