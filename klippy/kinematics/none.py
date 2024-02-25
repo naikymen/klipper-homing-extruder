@@ -26,5 +26,5 @@ class NoneKinematics:
             'axis_maximum': self.axes_minmax,
         }
 
-def load_kinematics(toolhead, config, trapq):
+def load_kinematics(toolhead, config, trapq, **kwargs):
     return NoneKinematics(toolhead, config, trapq)

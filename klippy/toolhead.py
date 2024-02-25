@@ -600,8 +600,11 @@ class ToolHead:
         # NOTE: No default value is passed, forcing the user to make a choice.
         kin_name = config.get(config_name)
 
-        if kin_name == "none":
-            return None, None
+        # # Handle the "none" kinematics as a special case.
+        # if kin_name == "none":
+        #     trapq = None
+        #     kin = none.load_kinematics(toolhead=self, config=config, trapq=trapq)
+        #     return kin, trapq
 
         # TODO: Support other kinematics is due. Error out for now.
         if kin_name not in self.supported_kinematics:
