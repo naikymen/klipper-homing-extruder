@@ -11,12 +11,14 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .klippy import Printer
     from .configfile import ConfigWrapper
+    from .gcode import GCodeDispatch
 
 import math, logging, importlib
 import mcu, chelper, kinematics.extruder
 import time
 from kinematics.extruder import PrinterExtruder
 from pprint import pformat
+from collections import namedtuple
 # Common suffixes: _d is distance (in mm), _v is velocity (in
 #   mm/second), _v2 is velocity squared (mm^2/s^2), _t is time (in
 #   seconds), _r is ratio (scalar between 0.0 and 1.0)
@@ -506,7 +508,7 @@ class ToolHead:
             raise config.error(msg)
         
         # NOTE: load the gcode objects (?)
-        gcode = self.printer.lookup_object('gcode')
+        gcode: GCodeDispatch = self.printer.lookup_object('gcode')
         self.Coord = gcode.Coord
         
         # NOTE: Load trapq (iterative solvers) and kinematics for the requested axes.
@@ -1417,14 +1419,18 @@ class ToolHead:
         # TODO: Update get_status to use info from all kinematics.
         res = dict()
         for kin in self.kinematics.values():
-            res.update(kin.get_status(eventtime, res))
+            new = kin.get_status(eventtime)
+            res = self.concat_kin_status(prev=res, new=new, kin=kin)
 
         # NOTE: Include the extruder limits if configured.
         if self.extruder.get_name():
             e_stepper = self.extruder.extruder_stepper
             if e_stepper is not None:
-                e_status = e_stepper.get_limit_status(eventtime, res)
-                res.update(e_status)
+                # NOTE: it is ok to use "get_limit_status" instead of "get_status",
+                #       as the information required from the toolhead only concerns
+                #       information from axes, and not extruder-specific parameters. 
+                e_status = e_stepper.get_limit_status(eventtime)
+                res = self.concat_kin_status(prev=res, new=e_status, kin=e_stepper)
         
         # Add the standard properties.
         res.update({ 'print_time': print_time,
@@ -1437,6 +1443,46 @@ class ToolHead:
                      'max_accel_to_decel': self.requested_accel_to_decel,
                      'square_corner_velocity': self.square_corner_velocity})
         return res
+
+    @staticmethod
+    def concat_kin_status(prev: dict, new: dict, kin):            
+        # Concatenate homed axes.
+        if 'homed_axes' in prev.keys():
+            prev['homed_axes'] += new['homed_axes']
+        else:
+            prev['homed_axes'] = new['homed_axes']
+        
+        # Update minimum limits.
+        if 'axis_minimum' in prev.keys():
+            ref_lims: namedtuple = prev['axis_minimum']
+            kin_lims: namedtuple = kin.axes_min
+            for axis in kin.axis_names.lower():
+                value = getattr(kin_lims, axis)
+                ref_lims = ref_lims._replace(**{axis: value})
+            prev['axis_minimum'] = ref_lims
+        else:
+            prev['axis_minimum'] = kin.axes_min
+
+        # Update maximum limits.
+        if 'axis_maximum' in prev.keys():
+            ref_lims: namedtuple = prev['axis_maximum']
+            kin_lims: namedtuple = kin.axes_max
+            for axis in kin.axis_names.lower():
+                value = getattr(kin_lims, axis)
+                ref_lims = ref_lims._replace(**{axis: value})
+            prev['axis_maximum'] = ref_lims
+        else:
+            prev['axis_maximum'] = kin.axes_max
+
+        # Add the missing properties.
+        # WARN: This might be a bit hacky, but ok as long as all 
+        #       special cases are handled above. If not, information
+        #       will be lost without warning and probably cause problems.
+        for key, value in new.items():
+            # This will not overwite.
+            prev.setdefault(key, value)
+
+        return prev
     
     def _handle_shutdown(self):
         self.can_pause = False

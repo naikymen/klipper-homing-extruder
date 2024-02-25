@@ -3,6 +3,16 @@
 # Copyright (C) 2016-2022  Kevin O'Connor <kevin@koconnor.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
+
+# Type checking without cyclic import error.
+# See: https://stackoverflow.com/a/39757388
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from extras.homing import Homing
+    from ..configfile import ConfigWrapper
+    from ..toolhead import ToolHead
+
 import math, logging
 import stepper, chelper
 
@@ -36,6 +46,9 @@ class ExtruderStepper:
         #       method, which the MCU_stepper object returned "PrinterStepper" does
         #       not have, but the PrinterRail does. This has been patched.
         self.stepper = self.steppers[0]
+
+        # NOTE: Set the single-letter code for the Extruder's axis.
+        self.axis_names: str = "E"
 
         # NOTE: Setup attributes for limit checks, useful for syringe extruders.
         # TODO: Check if this works as expected for extruder limit checking.
@@ -77,13 +90,14 @@ class ExtruderStepper:
                                    self.name, self.cmd_SYNC_STEPPER_TO_EXTRUDER,
                                    desc=self.cmd_SYNC_STEPPER_TO_EXTRUDER_help)
     def _handle_connect(self):
-        toolhead = self.printer.lookup_object('toolhead')
+        toolhead: ToolHead = self.printer.lookup_object('toolhead')
         toolhead.register_step_generator(self.stepper.generate_steps)
         self._set_pressure_advance(self.config_pa, self.config_smooth_time)
 
         # NOTE: Setup attributes for limit checks, useful for syringe extruders.
         if self.can_home:
             range = self.rail.get_range()
+            logging.info(f"ExtruderStepper: handle_connect updating limits according to range={range}")
             self.axes_min = toolhead.Coord(e=range[0])
             self.axes_max = toolhead.Coord(e=range[1])
 
@@ -103,53 +117,17 @@ class ExtruderStepper:
 
         return status
 
-    def get_limit_status(self, eventtime, prev=None):
-        # Default output.
-        status=dict()
-        
-        # TODO: Clean this up! This code is duplicated in several places,
-        #       At least in the extruder stepper and in the xxx_abc.py kinematics.
-        
-        # Only enter here if the extruder stepper is home-able.
+    def get_limit_status(self, eventtime):
+        result = {}
         if self.can_home:
-            # Compute the homed axes.
-            homed_axes = [a for a, (l, h) in zip("e", self.limits) if l <= h]
-            homed_axes = "".join(homed_axes)
-            # This is the regular output, when no "previous" info must be updated.
-            if prev is None:
-                status = {
-                    'homed_axes': homed_axes,
-                    'axis_minimum': self.axes_min,
-                    'axis_maximum': self.axes_max,
-                }
-            else:
-                # If there is previous info to update, 
-                # handle the cases one by one.
-                
-                # Concatenate homed axes.
-                if 'homed_axes' in prev.keys():
-                    prev['homed_axes'] += homed_axes
-                else:
-                    prev['homed_axes'] = homed_axes
-                
-                # Update minimum limits.
-                if 'axis_minimum' in prev.keys():
-                    value = getattr(self.axes_min, "e")
-                    prev['axis_minimum'] = prev['axis_minimum']._replace(e=value)
-                else:
-                    prev['axis_minimum'] = self.axes_min
-
-                # Update maximum limits.
-                if 'axis_maximum' in prev.keys():
-                    value = getattr(self.axes_max, "e")
-                    prev['axis_maximum'] = prev['axis_maximum']._replace(e=value)
-                else:
-                    prev['axis_maximum'] = self.axes_max
-                
-                status = prev
-
-        # Done!
-        return status
+            axes = [a for a, (l, h) in zip(self.axis_names.lower(), self.limits) if l <= h]
+            result = {
+                'homed_axes': "".join(axes),
+                'axis_minimum': self.axes_min,
+                'axis_maximum': self.axes_max,
+            }
+        return result
+        
     
     def find_past_position(self, print_time):
         mcu_pos = self.stepper.get_past_mcu_position(print_time)
