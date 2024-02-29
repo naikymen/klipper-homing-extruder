@@ -186,9 +186,9 @@ class ExtruderHoming:
         #       Originally 0.0, now position_max, which requires an
         #       endstop position of 0.0 to home in the right direction.
         if self.homing_info.positive_dir:
-            e_startpos = position_min
+            e_startpos = position_min - pos[-1] * 1.1
         else:
-            e_startpos = position_max
+            e_startpos = position_max + pos[-1] * 1.1
         startpos = self.th_orig_pos[:-1] + [e_startpos]
         self.toolhead.set_position(newpos=startpos, 
                                    homing_axes=(self.toolhead.axis_count, ))
@@ -280,9 +280,9 @@ class ExtruderHoming:
         #       Originally 0.0, now position_max, which requires an
         #       endstop position of 0.0 to home in the right direction.
         if homing_info.positive_dir:
-            e_startpos = position_min
+            e_startpos = position_min - pos[-1] * 1.1
         else:
-            e_startpos = position_max
+            e_startpos = position_max + pos[-1] * 1.1
         
         # NOTE: Get the initial position from all non-E elements in the toolhead's 
         #       position by using its "axis count" (this can be 3 or 6).
@@ -359,7 +359,7 @@ class ExtruderHoming:
         movepos = homing_info.position_endstop
         
         # NOTE: adding a small amount just in case:
-        movepos = 1.1 * movepos
+        # movepos = 1.1 * movepos  # TODO: check again that this was completely wrong.
         logging.info(f"\n\nget_movepos: movepos={str(movepos)}\n\n")
 
         # NOTE: movepos will be the target coordinate for the move,
