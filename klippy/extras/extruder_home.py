@@ -322,40 +322,11 @@ class ExtruderHoming:
         #   homing_positive_dir: False
         position_min, position_max = rail.get_range()
         
-        # NOTE: The following movepos is overriden below. Left here for reference.
-        # NOTE: The logic in cartesian.py and stepper.py is slightly convoluted.
-        #       Given:
-        #       -   min  = 0
-        #       -   stop = 10
-        #       -   max = 100
-        #       The code will correctly assign "homing_positive_dir=False",
-        #       but then set "pos=145", which is a _positive_ direction.
-        #       The idea is that the _current_ position of the 
-        #       toolhead will be set to "145", and the homing position
-        #       will be set to the endstop's position afterwords.
-        #       See "_home_axis" (CartKinematics) and init (PrinterRail).
-        # NOTE: That logic has been replaced here: start at 0, 
-        #       and move towards the sensible direction for the 
-        #       expected distance.
-        if homing_info.positive_dir:
-            # NOTE: for a "positive side" endstop, the toolhead will
-            #       move _at most_ the distance between "min" and "stop",
-            #       and it is ensured that it will be positive:
-            movepos = (homing_info.position_endstop - position_min)
-            # NOTE: for example:
-            #       movepos = (30 - 0) = 30
-        else:
-            # NOTE: for a "negative side" endstop, the toolhead will
-            #       move _at most_ the distance between "stop" and "max",
-            #       and it is ensured that it will be negative:
-            movepos = (homing_info.position_endstop - position_max)
-            # NOTE: for example:
-            #       movepos = (0.0 - 30) = -30
-        
-        # NOTE: movepos override here. Use the endstop's position.
-        #       This requires a "negative side" endstop, and an initial
-        #       "startpos" axis position greater than 0 (setup above as,
-        #       position_max of the stepper rail).
+        # NOTE: Use the endstop's position.
+        #       The direction of the move towards this point is defined
+        #       by the starting position of the move, which is forced
+        #       before the homing move. This final position _must_ be 
+        #       within the limits of the axis being homed.
         movepos = homing_info.position_endstop
         
         # NOTE: adding a small amount just in case:
