@@ -158,7 +158,7 @@ class ExtruderStepper:
 
         if self.can_home:
             # NOTE: Software limit checks, borrowed from "cartesian.py".
-            logging.info("\n\n" + f"extruder_stepper.check_move_limits: checking move ending on epos={epos}" + "\n\n")
+            logging.info("\n\n" + f"extruder_stepper.check_move_limits: checking move ending on epos={epos} and limits={self.limits}" + "\n\n")
             if (epos < self.limits[0][0] or epos > self.limits[0][1]):
                 self._check_endstops(move)
         else:
