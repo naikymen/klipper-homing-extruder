@@ -186,9 +186,11 @@ class ExtruderHoming:
         #       Originally 0.0, now position_max, which requires an
         #       endstop position of 0.0 to home in the right direction.
         if self.homing_info.positive_dir:
-            e_startpos = position_min - pos[-1] * 1.1
+            # NOTE: pos[-1] is the endstop's position.
+            e_startpos = position_min - pos[-1] * 0.1
         else:
-            e_startpos = position_max + pos[-1] * 1.1
+            # NOTE: pos[-1] is the endstop's position.
+            e_startpos = position_max + pos[-1] * 0.1
         startpos = self.th_orig_pos[:-1] + [e_startpos]
         self.toolhead.set_position(newpos=startpos, 
                                    homing_axes=(self.toolhead.axis_count, ))
