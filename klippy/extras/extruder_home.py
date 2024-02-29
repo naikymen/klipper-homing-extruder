@@ -282,9 +282,11 @@ class ExtruderHoming:
         #       Originally 0.0, now position_max, which requires an
         #       endstop position of 0.0 to home in the right direction.
         if homing_info.positive_dir:
-            e_startpos = position_min - pos[-1] * 1.1
+            # NOTE: pos[-1] is the endstop's position.
+            e_startpos = position_min - pos[-1] * 0.1
         else:
-            e_startpos = position_max + pos[-1] * 1.1
+            # NOTE: pos[-1] is the endstop's position.
+            e_startpos = position_max + pos[-1] * 0.1
         
         # NOTE: Get the initial position from all non-E elements in the toolhead's 
         #       position by using its "axis count" (this can be 3 or 6).
