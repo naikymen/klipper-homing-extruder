@@ -61,7 +61,11 @@ class CartKinematicsABC(CartKinematics):
         self.axis_config = deepcopy(axes_ids)   # list of length <= 3: [0, 1, 3], [3, 4], [3, 4, 5], etc.
         self.axis_names: str = axis_set_letters      # char of length <= 3: "XYZ", "AB", "ABC", etc.
         self.axis_count = len(self.axis_names)  # integer count of configured axes (e.g. 2 for "XY").
-
+        
+        # Mapping dictionaries.
+        self.axis_map = {k: v for k, v in zip(self.axis_names, self.axis_config)}       # {"x": 0}
+        self.axis_map_rev = {v: k for k, v in zip(self.axis_names, self.axis_config)}   # {0: "x"}
+        
         # Just to check
         if len(self.axis_config) != self.axis_count:
             msg = f"CartKinematicsABC: Error. The amount of axis indexes in '{self.axis_config}'"
@@ -315,6 +319,7 @@ class CartKinematicsABC(CartKinematics):
             move (tolhead.Move): Instance of the Move class.
         """
         limit_checks = []
+        logging.info("\n\n" + f"cartesian_abc.check_move: checking move ending on {move.end_pos}.\n\n")
         for i, axis in enumerate(self.axis_config):
             # TODO: Check if its better to iterate over "self.axis" instead,
             #       see rationale in favor of "axis_config" above, at "_check_endstops".
@@ -330,22 +335,26 @@ class CartKinematicsABC(CartKinematics):
         #     or bpos < limits[1][0] or bpos > limits[1][1]):
         #     self._check_endstops(move)
         
-        self._check_endstops(move)
+        # NOTE: check if the move involves the Z axis, to limit the speed.
+        if "Z" not in self.axis_names.upper():
+            # No Z-axis has been configured in this kinematic.
+            logging.info(f"cartesian_abc.check_move: no Z axis in {self.axis_names} kinematic.")
+            return
         
-        # TODO: Reconsider adding Z-axis speed limiting.
-        # # NOTE: check if the move involves the Z axis, to limit the speed.
-        # if not move.axes_d[self.axis[2]]:
-        #     # Normal XY move, no Z axis movements - use default speed.
-        #     return
-        # else:
-        #     pass
-        #     # NOTE: removed the "Z" logic here, as it is implemented in 
-        #     #       the XYZ cartesian kinematic check already.
-        #     # Move with Z - update velocity and accel for slower Z axis
-        #     # z_ratio = move.move_d / abs(move.axes_d[2])
-        #     # move.limit_speed(
-        #     #     self.max_z_velocity * z_ratio, self.max_z_accel * z_ratio)
-        return
+        z_displacement = move.axes_d[self.axis_map["Z"]]
+        if not z_displacement:
+            # Normal XY move, no Z axis movements - use default speed.
+            logging.info("cartesian_abc.check_move: no Z axis in move.")
+            return
+        
+        # Move with Z - update velocity and accel for slower Z axis
+        self._check_endstops(move)
+        # NOTE: The Z ratio here is actually the inverse fraction of movement,
+        #       and is used below to limit the global speed to "Z ratio"-times 
+        #       the limits of the Z axis.
+        z_ratio = move.move_d / abs(z_displacement)
+        move.limit_speed(
+            self.max_z_velocity * z_ratio, self.max_z_accel * z_ratio)
     
     def get_status(self, eventtime):
         # NOTE: "zip" will iterate until one of the arguments runs out.
