@@ -59,6 +59,7 @@ class Move:
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
         self.axis_names = toolhead.axis_names
         self.axis_count = toolhead.axis_count
+        self.limited_axes = toolhead.limited_axes
 
         # NOTE: Compute the components of the displacement vector.
         #       The last component is now the extruder.
@@ -99,6 +100,13 @@ class Move:
         # NOTE: Compute a ratio between each component of the displacement
         #       vector and the total magnitude.
         self.axes_r = [d * inv_move_d for d in axes_d]
+
+        # NOTE: Scale the acceleration of the move, such that the toolhead's max
+        #       acceleration only limits the limited axes.
+        self.axes_r_limited = sum([self.axes_r[i] for i in self.limited_axes])
+        if self.axes_r_limited > 0.0:
+            self.accel = min(toolhead.max_accel / self.axes_r_limited, 99999999.9)
+            logging.info(f"\n\nMove: scale acceleration from {toolhead.max_accel} to {self.accel}.\n\n")
         
         # NOTE: Compute the mimimum time that the move will take (at speed == max speed).
         #       The time will be greater if the axes must accelerate during the move.
@@ -114,6 +122,10 @@ class Move:
         self.smooth_delta_v2 = 2.0 * move_d * toolhead.max_accel_to_decel
     
     def limit_speed(self, speed, accel):
+        """Limit the speed of the move, given a maximum velocity and acceleration.
+        This method is called from the kinematics, which is in turn caused by calls
+        to their 'check_move' methods by 'ToolHead.move'.
+        """
         speed2 = speed**2
         if speed2 < self.max_cruise_v2:
             self.max_cruise_v2 = speed2
@@ -136,7 +148,7 @@ class Move:
         if not self.is_kinematic_move or not prev_move.is_kinematic_move:
             return
         
-        logging.info("\n\nMove calc_junction: function triggered.\n\n")
+        logging.info(f"\n\nMove calc_junction: function triggered. Initial max_start_v2: {self.max_start_v2}\n\n")
         
         # Allow extruder to calculate its maximum junction
         # NOTE: Uses the "instant_corner_v" config parameter.
@@ -167,7 +179,7 @@ class Move:
         self.max_smoothed_v2 = min(self.max_start_v2, 
                                    prev_move.max_smoothed_v2 + prev_move.smooth_delta_v2)
         
-        logging.info("\n\nMove calc_junction: function end.\n\n")
+        logging.info(f"\n\nMove calc_junction: function end. Final max_start_v2: {self.max_start_v2}\n\n")
     
     def set_junction(self, start_v2, cruise_v2, end_v2):
         """Move.set_junction() implements the "trapezoid generator" on a move.
@@ -435,11 +447,21 @@ class ToolHead:
         
         # Dictionary to map axes to their indexes in the position vector "self.commanded_pos".
         self.axis_map = {a: i for i, a in enumerate(list(self.ax_letters)[:self.min_axes] + ["E"])}
+
+        # Which of the kinematic (non-extruder) axes are limited by the general acceleration setting.
+        self.accel_limited_axes = config.get('accel_limited_axes', self.axis_names)  # e.g. "XYZ", "XYZABC", "XY".
+        # Check.
+        if not all([n in self.axis_names for n in self.accel_limited_axes]):
+            msg = f"ToolHead setup error: all accel limited axes ({self.accel_limited_axes}) must be in the configured axis names ({self.axis_names})."
+            logging.exception(msg)
+            raise config.error(msg)
+        # Same thing, but in integer representation.
+        self.limited_axes = [self.axis_map[n] for n in self.accel_limited_axes]
         
         # TODO: support more kinematics.
         self.supported_kinematics = ["cartesian_abc", "corexy_abc", "none"]  # Removed "cartesian" until I fix it.
         
-        logging.info(f"\n\nToolHead: starting setup with axes={self.axis_names} and pos_length={self.pos_length}\n\n")
+        logging.info(f"\n\nToolHead: starting setup with axes={self.axis_names}, pos_length={self.pos_length}, and accel_limited_axes={self.accel_limited_axes}\n\n")
         
         self.printer: Printer = config.get_printer()
         self.reactor = self.printer.get_reactor()
