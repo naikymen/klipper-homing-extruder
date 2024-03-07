@@ -135,7 +135,7 @@ class MCU_stepper:
             self._stepper_kinematics, coord[0], coord[1], coord[2])
     
     def set_position(self, coord):
-        logging.info("\n\n" + f"MCU_stepper.set_position: setting coord={coord} on stepper={self._name}\n\n")
+        logging.info(f"MCU_stepper.set_position: setting coord={coord} on stepper={self._name}")
         # NOTE: reads current position from "get_commanded_position()",
         #       adds the "_mcu_position_offset" and converts to position
         #       dividing by "_step_dist".
@@ -145,14 +145,14 @@ class MCU_stepper:
         ffi_main, ffi_lib = chelper.get_ffi()
 
         # NOTE: "itersolve_set_position" sets "sk->commanded_pos" (at itersolve.c)
-        logging.info("\n\n" + f"MCU_stepper.set_position: calling itersolve_set_position\n\n")
+        logging.info(f"MCU_stepper.set_position: calling itersolve_set_position")
         ffi_lib.itersolve_set_position(sk, coord[0], coord[1], coord[2])
 
         # NOTE: "_set_mcu_position" uses "self.get_commanded_position" 
         #       and "itersolve_get_commanded_pos" to read "sk->commanded_pos" 
         #       (at itersolve.c), which has just been set above,
         #       and updates "self._mcu_position_offset".
-        logging.info("\n\n" + f"MCU_stepper.set_position: calling _set_mcu_position\n\n")
+        logging.info(f"MCU_stepper.set_position: calling _set_mcu_position")
         self._set_mcu_position(mcu_pos)
     
     def get_commanded_position(self):

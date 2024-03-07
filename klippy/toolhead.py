@@ -39,7 +39,7 @@ Within the host code, print times are generally stored in variables named print_
 # Class to track each move request
 class Move:
     def __init__(self, toolhead, start_pos, end_pos, speed):
-        logging.info(f"\n\nMove: setup with start_pos={start_pos} and end_pos={end_pos}\n\n")
+        logging.info(f"Move: setup with start_pos={start_pos} and end_pos={end_pos}")
         
         self.toolhead = toolhead
         self.start_pos = tuple(start_pos)
@@ -69,7 +69,7 @@ class Move:
         #       excluding the extruder.
         self.move_d = move_d = math.sqrt(sum([d*d for d in axes_d[:-1]]))
         
-        logging.info(f"\n\nMove: setup with axes_d={axes_d} and move_d={move_d}.\n\n")
+        logging.info(f"Move: setup with axes_d={axes_d} and move_d={move_d}.")
         
         # NOTE: If the move in XYZ is very small, then parse it as an extrude-only move.
         if move_d < .000000001:
@@ -106,7 +106,7 @@ class Move:
         self.axes_r_limited = sum([self.axes_r[i] for i in self.limited_axes])
         if self.axes_r_limited > 0.0:
             self.accel = min(toolhead.max_accel / self.axes_r_limited, 99999999.9)
-            logging.info(f"\n\nMove: scale acceleration from {toolhead.max_accel} to {self.accel}.\n\n")
+            logging.info(f"Move: scale acceleration from {toolhead.max_accel} to {self.accel}.")
         
         # NOTE: Compute the mimimum time that the move will take (at speed == max speed).
         #       The time will be greater if the axes must accelerate during the move.
@@ -148,7 +148,7 @@ class Move:
         if not self.is_kinematic_move or not prev_move.is_kinematic_move:
             return
         
-        logging.info(f"\n\nMove calc_junction: function triggered. Initial max_start_v2: {self.max_start_v2}\n\n")
+        logging.info(f"Move calc_junction: function triggered. Initial max_start_v2: {self.max_start_v2}")
         
         # Allow extruder to calculate its maximum junction
         # NOTE: Uses the "instant_corner_v" config parameter.
@@ -179,7 +179,7 @@ class Move:
         self.max_smoothed_v2 = min(self.max_start_v2, 
                                    prev_move.max_smoothed_v2 + prev_move.smooth_delta_v2)
         
-        logging.info(f"\n\nMove calc_junction: function end. Final max_start_v2: {self.max_start_v2}\n\n")
+        logging.info(f"Move calc_junction: function end. Final max_start_v2: {self.max_start_v2}")
     
     def set_junction(self, start_v2, cruise_v2, end_v2):
         """Move.set_junction() implements the "trapezoid generator" on a move.
@@ -194,7 +194,7 @@ class Move:
             end_v2 (_type_): _description_
         """
         
-        logging.info("\n\nMove set_junction: function triggered.\n\n")
+        logging.info("Move set_junction: function triggered.")
         
         # Determine accel, cruise, and decel portions of the move distance
         half_inv_accel = .5 / self.accel
@@ -211,7 +211,7 @@ class Move:
         self.cruise_t = cruise_d / cruise_v
         self.decel_t = decel_d / ((end_v + cruise_v) * 0.5)
         
-        logging.info("\n\nMove set_junction: function end.\n\n")
+        logging.info("Move set_junction: function end.")
 
 LOOKAHEAD_FLUSH_TIME = 0.250
 
@@ -238,7 +238,7 @@ class LookAheadQueue:
             lazy (bool, optional): _description_. Defaults to False.
         """
         # NOTE: logging for tracing activity
-        logging.info("\n\nMoveQueue flush: function triggered.\n\n")
+        logging.info("MoveQueue flush: function triggered.")
         # NOTE: called by "add_move" when: 
         #       "Enough moves have been queued to reach the target flush time."
         #       Also called by "flush_step_generation".
@@ -334,14 +334,14 @@ class LookAheadQueue:
         #       which can happen if the queue was originally empty (¿or perhaps if
         #       the peak cruise speed was found on the second move?).
         if update_flush_count or not flush_count:
-            logging.info(f"\n\nMoveQueue flush: _process_moves skipped due to update_flush_count={update_flush_count} or not flush_count={flush_count}\n\n")
+            logging.info(f"MoveQueue flush: _process_moves skipped due to update_flush_count={update_flush_count} or not flush_count={flush_count}")
             return
         
         # Generate step times for all moves ready to be flushed
         # NOTE: The clock time when these moves will be executed is not yet explicit,
         #       it will be calculated  by "_process_moves", and then updated with
         #       a call to "_update_move_time".
-        logging.info("\n\nMoveQueue flush: calling _process_moves.\n\n")
+        logging.info("MoveQueue flush: calling _process_moves.")
         # NOTE: "flush_count" can only have been made possibly smaller by 
         #       setting "lazy=True" from the start. This means that a "regular"
         #       call to flush will try to remove all
@@ -356,7 +356,7 @@ class LookAheadQueue:
         Args:
             move (Move): A new Move object.
         """
-        logging.info(f"\n\nMoveQueue.add_move: adding move.\n\n")
+        logging.info(f"MoveQueue.add_move: adding move.")
         self.queue.append(move)
         
         # NOTE: The move queue is not flushed automatically when the 
@@ -461,7 +461,7 @@ class ToolHead:
         # TODO: support more kinematics.
         self.supported_kinematics = ["cartesian_abc", "corexy_abc", "none"]  # Removed "cartesian" until I fix it.
         
-        logging.info(f"\n\nToolHead: starting setup with axes={self.axis_names}, pos_length={self.pos_length}, and accel_limited_axes={self.accel_limited_axes}\n\n")
+        logging.info(f"ToolHead: starting setup with axes={self.axis_names}, pos_length={self.pos_length}, and accel_limited_axes={self.accel_limited_axes}")
         
         self.printer: Printer = config.get_printer()
         self.reactor = self.printer.get_reactor()
@@ -522,7 +522,7 @@ class ToolHead:
         # NOTE: check TRAPQ for the extra ABC axes here.
         # TODO: rewite this part to setup an arbitrary amount of axis, relying on the specification (XYZABC).
         if len(self.axis_names) == 6:
-            logging.info(f"\n\nToolHead: setting up additional ABC trapq.\n\n")
+            logging.info(f"ToolHead: setting up additional ABC trapq.")
         elif len(self.axis_names) > 3:
             msg = f"Error loading toolhead with '{self.axis_names}' ({len(self.axis_names)}) axes is unsupported."
             msg += " Use either XYZ (3) or XYZABC (6) axes."
@@ -677,7 +677,7 @@ class ToolHead:
         #       "flush_moves" on all MCUs, and "generate_steps" on all steppers.
         # NOTE: Called by "flush_step_generation", "_process_moves", 
         #       "dwell", and "_update_drip_move_time".
-        logging.info(f"\n\nToolHead: _update_move_time triggered with flush_time={flush_time}\n\n")
+        logging.info(f"ToolHead: _update_move_time triggered with flush_time={flush_time}")
         flush_time = max(flush_time, self.last_flush_time)
         # Generate steps via itersolve
         sg_flush_want = min(flush_time + STEPCOMPRESS_FLUSH_TIME,
@@ -716,7 +716,7 @@ class ToolHead:
         for axes in list(self.kinematics):
             # Iterate over ["XYZ", "ABC"].
             kin = self.kinematics[axes]
-            logging.info(f"\n\nToolHead._update_move_time calling trapq_finalize_moves on axes={axes} with free_time={free_time}\n\n")
+            logging.info(f"ToolHead._update_move_time calling trapq_finalize_moves on axes={axes} with free_time={free_time}")
             self.trapq_finalize_moves(kin.trapq, free_time, clear_history_time)
         self.extruder.update_move_time(free_time, clear_history_time)
         # Flush stepcompress and mcu steppersync
@@ -814,7 +814,7 @@ class ToolHead:
         #       The "moves" argument receives a "queue" of moves "ready to be flushed".
         
         # NOTE: logging for tracing activity
-        logging.info("\n\nToolHead _process_moves: function triggered.\n\n")
+        logging.info("ToolHead _process_moves: function triggered.")
         
         # Resync print_time if necessary
         if self.special_queuing_state:
@@ -825,7 +825,7 @@ class ToolHead:
             # NOTE Update "self.print_time".
             self._calc_print_time()
             # NOTE: Also sends a "toolhead:sync_print_time" event.
-            logging.info(f"\n\nToolHead _process_moves: self.print_time={str(self.print_time)}\n\n")
+            logging.info(f"ToolHead _process_moves: self.print_time={str(self.print_time)}")
         
         # Queue moves into trapezoid motion queue (trapq)
         # NOTE: the "trapq" is possibly something like a CFFI object.
@@ -838,7 +838,7 @@ class ToolHead:
             
             for axes in list(self.kinematics):
                 # Iterate over["XYZ", "ABC"]
-                logging.info("\n\n" + f"toolhead._process_moves: appending move to {axes} trapq.\n\n")
+                logging.info(f"toolhead._process_moves: appending move to {axes} trapq.")
                 kin = self.kinematics[axes]
                 # NOTE: The moves are first placed on a "trapezoid motion queue" with trapq_append.
                 if move.is_kinematic_move:
@@ -873,8 +873,8 @@ class ToolHead:
         if self.special_queuing_state:
             # NOTE: this block is executed when "special_queuing_state" is not None.
             # NOTE: loging "next_move_time" for tracing.
-            logging.info("\n\nToolHead _process_moves: calling _update_drip_move_time with " +
-                         f"next_move_time={str(next_move_time)}\n\n")
+            logging.info("ToolHead _process_moves: calling _update_drip_move_time with " +
+                         f"next_move_time={str(next_move_time)}")
             # NOTE: This function loops "while self.print_time < next_print_time".
             #       It "pauses before sending more steps" using "drip_completion.wait",
             #       and calls "_update_move_time" with small increments in "next_move_time". 
@@ -1030,7 +1030,7 @@ class ToolHead:
         
         Has no effect on XYZ IDs
         """
-        logging.info(f"\n\ntoolhead.axes_to_xyz: input={axes}\n\n")
+        logging.info(f"toolhead.axes_to_xyz: input={axes}")
         
         xyz_ids = [0, 1, 2, 0, 1, 2]
         
@@ -1040,9 +1040,9 @@ class ToolHead:
             else:
                 result = xyz_ids[axes]
         except:
-            raise Exception(f"\n\ntoolhead.axes_to_xyz: error with input={axes}\n\n")
+            raise Exception(f"toolhead.axes_to_xyz: error with input={axes}")
         
-        logging.info(f"\n\ntoolhead.axes_to_xyz: output={result}\n\n")
+        logging.info(f"toolhead.axes_to_xyz: output={result}")
         
         return result
     
@@ -1056,33 +1056,33 @@ class ToolHead:
         return coords
     
     def set_position(self, newpos, homing_axes=()):
-        logging.info("\n\n" + f"toolhead.set_position: setting newpos={newpos} and homing_axes={homing_axes}\n\n")
+        logging.info(f"toolhead.set_position: setting newpos={newpos} and homing_axes={homing_axes}")
         self.flush_step_generation()
             
         # NOTE: Set the position of the axes "trapq".
         for axes in list(self.kinematics):
             # Iterate over["XYZ", "ABC"]
-            logging.info("\n\n" + f"toolhead.set_position: setting {axes} trapq position.\n\n")
+            logging.info(f"toolhead.set_position: setting {axes} trapq position.")
             kin = self.kinematics[axes]
             # Filter the axis IDs according to the current kinematic
             new_kin_pos = self.get_elements(newpos, kin.axis)
-            logging.info("\n\n" + f"toolhead.set_position: using newpos={new_kin_pos}\n\n")
+            logging.info(f"toolhead.set_position: using newpos={new_kin_pos}")
             self.set_kin_trap_position(kin.trapq, new_kin_pos)
         
         # NOTE: Also set the position of the extruder's "trapq".
         #       Runs "trapq_set_position" and "rail.set_position".
-        logging.info("\n\n" + f"toolhead.set_position: setting E trapq pos.\n\n")
+        logging.info(f"toolhead.set_position: setting E trapq pos.")
         self.set_position_e(newpos_e=newpos[-1], homing_axes=homing_axes)
         
         # NOTE: Set the position of the axes "kinematics".
         for axes in list(self.kinematics):
             # Iterate over["XYZ", "ABC"]
-            logging.info("\n\n" + f"toolhead.set_position: setting {axes} kinematic position.\n\n")
+            logging.info(f"toolhead.set_position: setting {axes} kinematic position.")
             kin = self.kinematics[axes]
             # Filter the axis IDs according to the current kinematic, and convert them to the "0,1,2" range.
             kin_homing_axes = self.axes_to_xyz([axis for axis in homing_axes if axis in kin.axis])
             new_kin_pos = self.get_elements(newpos, kin.axis)
-            logging.info("\n\n" + f"toolhead.set_position: using newpos={new_kin_pos} and kin_homing_axes={kin_homing_axes}\n\n")
+            logging.info(f"toolhead.set_position: using newpos={new_kin_pos} and kin_homing_axes={kin_homing_axes}")
             self.set_kinematics_position(kin=kin, newpos=new_kin_pos, homing_axes=tuple(kin_homing_axes))
             
         # NOTE: "set_position_e" was inserted above and not after 
@@ -1105,12 +1105,12 @@ class ToolHead:
         
         if trapq is not None:
             # NOTE: Set the position of the toolhead's "trapq".
-            logging.info("\n\n" + f"toolhead.set_kin_trap_position: setting trapq pos to newpos={newpos}\n\n")
+            logging.info(f"toolhead.set_kin_trap_position: setting trapq pos to newpos={newpos}")
             ffi_main, ffi_lib = chelper.get_ffi()
             ffi_lib.trapq_set_position(self.trapq, self.print_time,
                                        newpos[0], newpos[1], newpos[2])
         else:
-            logging.info("\n\n" + f"toolhead.set_kin_trap_position: trapq was None, skipped setting to newpos={newpos}\n\n")
+            logging.info(f"toolhead.set_kin_trap_position: trapq was None, skipped setting to newpos={newpos}")
     
     def set_kinematics_position(self, kin, newpos, homing_axes):
         """Abstraction of kin.set_position for different sets of kinematics.
@@ -1127,14 +1127,14 @@ class ToolHead:
         #       calls "itersolve_set_position" from "itersolve.c".
         # NOTE: Passing only the first three elements (XYZ) to this set_position.
         if kin is not None:
-            logging.info("\n\n" + f"toolhead.set_kinematics_position: setting kinematic position with newpos={newpos} and homing_axes={homing_axes}\n\n")
+            logging.info(f"toolhead.set_kinematics_position: setting kinematic position with newpos={newpos} and homing_axes={homing_axes}")
             kin.set_position(newpos, homing_axes=tuple(homing_axes))
         else:
-            logging.info("\n\n" + f"toolhead.set_kinematics_position: kin was None, skipped setting to newpos={newpos} and homing_axes={homing_axes}\n\n")
+            logging.info(f"toolhead.set_kinematics_position: kin was None, skipped setting to newpos={newpos} and homing_axes={homing_axes}")
 
     def set_position_e(self, newpos_e, homing_axes=()):
         """Extruder version of set_position."""
-        logging.info("\n\n" + f"toolhead.set_position_e: setting E to newpos={newpos_e}.\n\n")
+        logging.info(f"toolhead.set_position_e: setting E to newpos={newpos_e}.")
         
         # Get the active extruder
         extruder: PrinterExtruder = self.get_extruder()  # PrinterExtruder
@@ -1157,17 +1157,17 @@ class ToolHead:
             speed (_type_): _description_
         """
 
-        logging.info(f"\n\ntoolhead.move: processing move to newpos={newpos} at speed={speed}\n\n")
+        logging.info(f"toolhead.move: processing move to newpos={newpos} at speed={speed}")
 
         # Check if any unconfigured (non-extruder) axes are being moved.
         moved_axes = [i for i, (start_pos, end_pos) in enumerate(zip(self.commanded_pos, newpos)) if start_pos != end_pos]
         unconfigured_axes = list(set(moved_axes).difference(self.axes))
-        logging.info(f"\n\ntoolhead.move: moved_axes={moved_axes} unconfigured_axes={unconfigured_axes} self.axes={self.axes}\n\n")
+        logging.info(f"toolhead.move: moved_axes={moved_axes} unconfigured_axes={unconfigured_axes} self.axes={self.axes}")
         if unconfigured_axes:
             unconfigured_axes_names = "".join( [ list(self.axis_map)[ax] for ax in unconfigured_axes] )
             raise self.printer.command_error(f"Toolhead move: you must configure the {unconfigured_axes_names} axes ({unconfigured_axes}) in order to use them.")
 
-        logging.info(f"\n\ntoolhead.move: moving to newpos={newpos}\n\n")
+        logging.info(f"toolhead.move: moving to newpos={newpos}")
         move = Move(toolhead=self, 
                     start_pos=self.commanded_pos,
                     end_pos=newpos, 
@@ -1179,7 +1179,7 @@ class ToolHead:
 
         # NOTE: Move checks.
         if not move.move_d:
-            logging.info(f"\n\ntoolhead.move: early return, nothing to move. move.move_d={move.move_d}\n\n")
+            logging.info(f"toolhead.move: early return, nothing to move. move.move_d={move.move_d}")
             return
         
         # NOTE: Kinematic move checks for XYZ and ABC axes.
@@ -1189,7 +1189,7 @@ class ToolHead:
             # for axes in ["XYZ"]:
             for axes in list(self.kinematics):    
                 # Iterate over["XYZ", "ABC"]
-                logging.info("\n\n" + f"toolhead.move: check_move on {axes} move.\n\n")
+                logging.info(f"toolhead.move: check_move on {axes} move.")
                 kin = self.kinematics[axes]
                 kin.check_move(move)
             # self.kin.check_move(move)
@@ -1199,7 +1199,7 @@ class ToolHead:
             
         # NOTE: Kinematic move checks for E axis.
         if move.axes_d[-1]:
-            logging.info("\n\n" + f"toolhead.move: check_move on E move to {move.axes_d[-1]}.\n\n")
+            logging.info(f"toolhead.move: check_move on E move to {move.axes_d[-1]}.")
             # NOTE: The extruder will check the move assuming that the last coordinate is the E axis.
             self.extruder.check_move(move)
         
@@ -1339,7 +1339,7 @@ class ToolHead:
         # Submit move
         try:
             # NOTE: Uses "add_move", to add a move to the "move_queue".
-            logging.info("\n\ndrip_move: sending move to the queue.\n\n")
+            logging.info("drip_move: sending move to the queue.")
             self.move(newpos, speed)
         except self.printer.command_error as e:
             self.reactor.update_timer(self.flush_timer, self.reactor.NOW)
@@ -1354,10 +1354,10 @@ class ToolHead:
             #       That method will raise "DripModeEndSignal" when the result of 
             #       "drip_completion.test()" is True, thereby ending the move,
             #       and returning here.
-            logging.info("\n\ndrip_move: flushing move queue / transmitting move.\n\n")
+            logging.info("drip_move: flushing move queue / transmitting move.")
             self.lookahead.flush()
         except DripModeEndSignal as e:
-            logging.info("\n\ndrip_move: resetting move queue / DripModeEndSignal caught.\n\n")
+            logging.info("drip_move: resetting move queue / DripModeEndSignal caught.")
             
             # NOTE: deletes al moves in the queue and resets "junction_flush" time.
             self.lookahead.reset()
@@ -1371,7 +1371,7 @@ class ToolHead:
             for axes in list(self.kinematics):
                 # Iterate over ["XYZ", "ABC"].
                 kin = self.kinematics[axes]
-                logging.info(f"\n\nToolHead.drip_move calling trapq_finalize_moves on axes={axes} free_time=self.reactor.NEVER ({self.reactor.NEVER})\n\n")
+                logging.info(f"ToolHead.drip_move calling trapq_finalize_moves on axes={axes} free_time=self.reactor.NEVER ({self.reactor.NEVER})")
                 self.trapq_finalize_moves(kin.trapq, self.reactor.NEVER, 0)
             
             # # NOTE: This calls a function in "trapq.c", described as:
@@ -1398,7 +1398,7 @@ class ToolHead:
         # Exit "Drip" state
         self.reactor.update_timer(self.flush_timer, self.reactor.NOW)
         # NOTE: logging for tracing activity
-        logging.info("\n\ndrip_move: calling flush_step_generation / exit drip state.\n\n")
+        logging.info("drip_move: calling flush_step_generation / exit drip state.")
         # NOTE: the "flush_step_generation" method, which calls:
         #       - "flush", which should do nothing (dine just above, and the queue is empty).
         #       - "reactor.update_timer"

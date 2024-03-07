@@ -42,7 +42,7 @@ class StepperPosition:
         self.stepper_name = stepper.get_name()
         self.start_pos = stepper.get_mcu_position()
         self.halt_pos = self.trig_pos = None
-        logging.info("\n\n" + f"homing.StepperPosition: add stepper {self.stepper_name} to endstop {self.endstop_name}"+ "\n\n")
+        logging.info(f"homing.StepperPosition: add stepper {self.stepper_name} to endstop {self.endstop_name}")
     def note_home_end(self, trigger_time):
         # NOTE: method called by "homing_move" to determine halt/trig positions.
 
@@ -104,7 +104,7 @@ class HomingMove:
         kin_spos = dict(kin_spos)
         
         # NOTE: log input for reference
-        logging.info(f"\n\ncalc_toolhead_pos input: kin_spos={str(kin_spos)} offsets={str(offsets)}\n\n")
+        logging.info(f"calc_toolhead_pos input: kin_spos={str(kin_spos)} offsets={str(offsets)}")
 
         # NOTE: Update XYZ and ABC steppers position.
         for axes in list(self.toolhead.kinematics):
@@ -159,7 +159,7 @@ class HomingMove:
                 
         # NOTE: Log output for reference, example:
         #       calc_toolhead_pos output=[-1.420625, 0.0, 0.0, 0.0]
-        logging.info(f"\n\ncalc_toolhead_pos: result={str(result)}\n\n")
+        logging.info(f"calc_toolhead_pos: result={str(result)}")
 
         # NOTE: This "result" is used to override "haltpos" below, which
         #       is then passed to "toolhead.set_position".
@@ -170,7 +170,7 @@ class HomingMove:
         """Called by the 'home_rails' or 'manual_home' methods."""
         # Notify start of homing/probing move
         self.printer.send_event(self.toolhead.event_prefix + "homing:homing_move_begin", self)
-        logging.info(f"\n\nhoming.homing_move: homing move called, starting setup.\n\n")
+        logging.info(f"homing.homing_move: homing move called, starting setup.")
 
         # Note start location
         self.toolhead.flush_step_generation()
@@ -208,7 +208,7 @@ class HomingMove:
         # Start endstop checking
         print_time = self.toolhead.get_last_move_time()
         endstop_triggers = []
-        logging.info(f"\n\nhoming.homing_move: homing move start.\n\n")
+        logging.info(f"homing.homing_move: homing move start.")
         for mcu_endstop, name in self.endstops:
             # NOTE: this calls "toolhead.get_position" to get "startpos".
             rest_time = self._calc_endstop_rate(mcu_endstop=mcu_endstop,
@@ -232,11 +232,11 @@ class HomingMove:
         #       the associated "mcu time" would have already passed.
         #       It was not needed after the implementation of drip moves.
         #       I don't know yet why it remains.
-        logging.info(f"\n\nhoming.homing_move: dwell for HOMING_START_DELAY={HOMING_START_DELAY}\n\n")
+        logging.info(f"homing.homing_move: dwell for HOMING_START_DELAY={HOMING_START_DELAY}")
         self.toolhead.dwell(HOMING_START_DELAY)
         
         # Issue move
-        logging.info(f"\n\nhoming.homing_move: issuing drip move.\n\n")
+        logging.info(f"homing.homing_move: issuing drip move.")
         error = None
         try:
             # NOTE: Before the "drip" commit, the following command 
@@ -251,7 +251,7 @@ class HomingMove:
             error = "Error during homing move: %s" % (str(e),)
         
         # Wait for endstops to trigger
-        logging.info(f"\n\nhoming.homing_move: waiting for endstop triggers.\n\n")
+        logging.info(f"homing.homing_move: waiting for endstop triggers.")
         trigger_times = {}
         # NOTE: Probably gets the time just after the last move.
         move_end_print_time = self.toolhead.get_last_move_time()
@@ -272,7 +272,7 @@ class HomingMove:
         #       and calls "trapq_finalize_moves").
         self.toolhead.flush_step_generation()
         
-        logging.info(f"\n\nhoming.homing_move: calculating haltpos.\n\n")
+        logging.info(f"homing.homing_move: calculating haltpos.")
         for sp in self.stepper_positions:
             # NOTE: get the time of endstop triggering
             tt = trigger_times.get(sp.endstop_name, move_end_print_time)
@@ -328,7 +328,7 @@ class HomingMove:
         #       The fourt element comes from "newpos_e" in the call to 
         #       "toolhead.set_position" above. The first element is the corrected
         #       "halt" position.
-        logging.info(f"\n\nhoming.homing_move: setting position.\n\n")
+        logging.info(f"homing.homing_move: setting position.")
         self.toolhead.set_position(haltpos)
         
         # Signal homing/probing move complete
@@ -351,7 +351,7 @@ class HomingMove:
 
         # NOTE: returns "trigpos", which is the position of the toolhead
         #       when the endstop triggered.
-        logging.info(f"\n\nhoming.homing_move: homing move end.\n\n")
+        logging.info(f"homing.homing_move: homing move end.")
         return trigpos
     
     def calc_halt_kin_spos(self, extruder_steppers):
@@ -381,7 +381,7 @@ class HomingMove:
         if self.printer.get_start_args().get('debuginput') is not None:
             return None
 
-        logging.info(f"\n\n" + f"check_no_movement with axes={axes}\n\n")
+        logging.info(f"check_no_movement with axes={axes}")
 
         # NOTE: from the StepperPosition class:
         #       -   self.start_pos = stepper.get_mcu_position()
@@ -394,7 +394,7 @@ class HomingMove:
 
                 # NOTE: default behaviour, consider all steppers.
                 if axes is None:
-                    logging.info("\n\n" + f"check_no_movement matched stepper with default behaviour: {sp_name}" + "\n\n")
+                    logging.info(f"check_no_movement matched stepper with default behaviour: {sp_name}")
                     return sp.endstop_name
 
                 # NOTE: This is the "G38" behaviour.
@@ -402,14 +402,14 @@ class HomingMove:
                 elif sp_name.lower().startswith("extruder"):
                     if any(axis.lower() == sp_name.lower() for axis in axes):
                         # NOTE: If the stepper that did not move was the "active" one, return.
-                        logging.info("\n\n" + f"check_no_movement matched stepper with G38 behaviour: {sp_name}" +"\n\n")
+                        logging.info(f"check_no_movement matched stepper with G38 behaviour: {sp_name}")
                         return sp.endstop_name
                 # NOTE: Handle the XYZ axes. 
                 elif any(axis.lower() in sp_name.lower() for axis in axes if axis in "xyz"): 
                     # NOTE: "Will return True if any of the substrings (axis)
                     #       in substring_list (axes) is contained in string (sp_name)."
                     #       See https://stackoverflow.com/a/8122096/11524079
-                    logging.info("\n\n" + f"check_no_movement matched stepper with G38 behaviour: {sp_name}" +"\n\n")
+                    logging.info(f"check_no_movement matched stepper with G38 behaviour: {sp_name}")
                     return sp.endstop_name
 
         return None
@@ -461,7 +461,7 @@ class Homing:
         #       difference between the endstop position and the
         #       opposing limit coordinate.
         
-        logging.info(f"\n\nhoming.home_rails: homing begins with forcepos={forcepos} and movepos={movepos}\n\n")
+        logging.info(f"homing.home_rails: homing begins with forcepos={forcepos} and movepos={movepos}")
         
         # Notify of upcoming homing operation
         self.printer.send_event(self.toolhead.event_prefix + "homing:home_rails_begin", self, rails)
@@ -496,7 +496,7 @@ class Homing:
             startpos = self._fill_coord(forcepos)
             homepos = self._fill_coord(movepos)
 
-            logging.info(f"\n\nhoming.home_rails: setting up second home startpos={startpos} and homepos={homepos}\n\n")
+            logging.info(f"homing.home_rails: setting up second home startpos={startpos} and homepos={homepos}")
             
             axes_d = [hp - sp for hp, sp in zip(homepos, startpos)]
             
@@ -507,7 +507,7 @@ class Homing:
             retractpos = [hp - ad * retract_r
                           for hp, ad in zip(homepos, axes_d)]
 
-            logging.info(f"\n\nhoming.home_rails: issuing retraction move to retractpos={retractpos}\n\n")
+            logging.info(f"homing.home_rails: issuing retraction move to retractpos={retractpos}")
             self.toolhead.move(retractpos, hi.retract_speed)
             
             # Home again
@@ -517,7 +517,7 @@ class Homing:
             hmove = HomingMove(self.printer, endstops,
                                # NOTE: Force use of a specific toolhead.
                                toolhead=self.toolhead)
-            logging.info(f"\n\nhoming.home_rails: starting second home startpos={startpos} and homepos={homepos}\n\n")
+            logging.info(f"homing.home_rails: starting second home startpos={startpos} and homepos={homepos}")
             hmove.homing_move(homepos, hi.second_homing_speed)
 
             # Check for no movement (endstop deactivation by retraction failed).
@@ -526,7 +526,7 @@ class Homing:
                     "Endstop %s still triggered after retract"
                     % (hmove.check_no_movement(),))
         else:
-            logging.info(f"\n\nhoming.home_rails: homing ended with no second homing move.\n\n")
+            logging.info(f"homing.home_rails: homing ended with no second homing move.")
         
         # Signal home operation complete
         self.toolhead.flush_step_generation()
@@ -566,7 +566,7 @@ class Homing:
                 homepos[axis] = newpos[axis]
             self.toolhead.set_position(homepos)
         
-        logging.info(f"\n\nhoming.home_rails: finalized.\n\n")
+        logging.info(f"homing.home_rails: finalized.")
 
 class PrinterHoming:
     def __init__(self, config):
@@ -645,7 +645,7 @@ class PrinterHoming:
         return epos
 
     def cmd_G28(self, gcmd):
-        logging.info(f"\n\nPrinterHoming.cmd_G28: homing with command={gcmd.get_commandline()}\n\n")
+        logging.info(f"PrinterHoming.cmd_G28: homing with command={gcmd.get_commandline()}")
         
         toolhead = self.printer.lookup_object(self.toolhead_id)
         # Move to origin
@@ -669,15 +669,15 @@ class PrinterHoming:
                 # Home all axes, except the extruder axis.
                 axes = list(range(toolhead.pos_length))[:-1]
             # Example axes = [0, 1, 2]
-            logging.info(f"\n\nPrinterHoming.cmd_G28: no specific axes requested, homing axes={axes}\n\n")
+            logging.info(f"PrinterHoming.cmd_G28: no specific axes requested, homing axes={axes}")
         
-        logging.info(f"\n\nPrinterHoming.cmd_G28: homing axes={axes}\n\n")
+        logging.info(f"PrinterHoming.cmd_G28: homing axes={axes}")
         
         # NOTE: Home all of the requested axes, from their respective kinematics.
         for kin_axes in list(toolhead.kinematics):  # Iterate over ["XYZ", "ABC"].
             # Get kinematics by axis set name (e.g. "XYZ").
             kin = toolhead.kinematics[kin_axes]
-            logging.info(f"\n\nPrinterHoming.cmd_G28: checking if kin axes={kin.axis} have been requested to home.\n\n")
+            logging.info(f"PrinterHoming.cmd_G28: checking if kin axes={kin.axis} have been requested to home.")
             if any(i in kin.axis for i in axes):
                 self.home_axes(kin=kin, homing_axes=[a for a in axes if a in kin.axis])
         
@@ -705,7 +705,7 @@ class PrinterHoming:
         #       Not useful, adapting "home_rails" would have been complicated.
         # axes = self.axes_to_xyz(homing_axes)
         axes = homing_axes
-        logging.info(f"\n\nPrinterHoming.home_axes: homing axis={homing_axes} on toolhead={self.toolhead_id}\n\n")
+        logging.info(f"PrinterHoming.home_axes: homing axis={homing_axes} on toolhead={self.toolhead_id}")
         
         # NOTE: Instance a "Homing" object, passing it the toolhead of this PrinterHoming instance.
         #       This is important because subclasses of PrinterHoming might be associated to another toolhead.

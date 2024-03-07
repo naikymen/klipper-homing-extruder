@@ -67,7 +67,7 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
     #       The following includes Z steppers and 
     #       extruder steppers.
     def _handle_mcu_identify(self):
-        logging.info(f"\n\n" + "ProbeEndstopWrapperG38._handle_mcu_identify activated (XYZE axes)" + "\n\n")
+        logging.info("ProbeEndstopWrapperG38._handle_mcu_identify activated (XYZE axes)")
 
         # NOTE: Register XYZ steppers.
         toolhead: ToolHead = self.printer.lookup_object('toolhead')
@@ -325,7 +325,7 @@ class ProbeG38:
             #       above, and the "cmd_PROBE_G38_2" method). 
             # NOTE: I had to add a "check_triggered" argument to 
             #       "probing_move" for G38.3 to work properly.
-            logging.info(f"\n\n" + "probe_g38 probing with axes: " + str(probe_axes) + "\n\n")
+            logging.info("probe_g38 probing with axes: " + str(probe_axes))
             
             # NOTE: "epos" is "trigpos" from the "homing_move" method.
             epos = phoming.probing_move(mcu_probe=self.probe.mcu_probe,
@@ -365,7 +365,7 @@ class ProbeG38:
             # and no probe was triggered during the move.
             status_prefix = "probe ended without trigger"
         
-        logging.info("\n\n" + f"probe_g38 probe ended with status: {status_prefix}" + "\n\n")
+        logging.info(f"probe_g38 probe ended with status: {status_prefix}")
 
         if toolhead.axis_count == 3:
             self.gcode.respond_info(status_prefix + " at x=%.3f y=%.3f z=%.3f e=%.3f" % tuple(epos))

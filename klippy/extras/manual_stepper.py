@@ -86,7 +86,7 @@ class ManualStepper:
             # double start_v, double cruise_v, double accel);
             start_v, cruise_v, accel)
 
-        logging.info(f"\n\ntrapq_append_move: sent move at print_time={print_time}")
+        logging.info(f"trapq_append_move: sent move at print_time={print_time}")
     
     def do_move(self, movepos, speed, accel, sync=True):
         self.sync_print_time()

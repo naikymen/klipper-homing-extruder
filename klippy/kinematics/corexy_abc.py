@@ -66,8 +66,8 @@ class CoreXYKinematicsABC:
         self.toolhead_axis_count = toolhead.axis_count  # len(self.axis_names)
         
         # Report results of the multi-axis setup.
-        msg = f"\n\CoreXYKinematicsABC: starting setup with axes '{self.axis_names}'"
-        msg += f", indexes '{self.axis_config}', and expanded indexes '{self.axis}'\n\n"
+        msg = f"CoreXYKinematicsABC: starting setup with axes '{self.axis_names}'"
+        msg += f", indexes '{self.axis_config}', and expanded indexes '{self.axis}'"
         logging.info(msg)
         
         if trapq is None:
@@ -211,9 +211,9 @@ class CoreXYKinematicsABC:
                      or end_pos[axis] > self.limits[i][1])):
                 if self.limits[i][0] > self.limits[i][1]:
                     # NOTE: self.limits will be "(1.0, -1.0)" when not homed, triggering this.
-                    msg = "\n\n" + f"corexy_abc._check_endstops: Must home axis {self.axis_names[i]} first,"
+                    msg = f"corexy_abc._check_endstops: Must home axis {self.axis_names[i]} first,"
                     msg += f"limits={self.limits[i]} end_pos[axis]={end_pos[axis]} "
-                    msg += f"move.axes_d[axis]={move.axes_d[axis]}" + "\n\n"
+                    msg += f"move.axes_d[axis]={move.axes_d[axis]}"
                     logging.info(msg)
                     raise move.move_error(f"Must home axis {self.axis_names[i]} first")
                 raise move.move_error()

@@ -92,10 +92,10 @@ class ProbeG38multi(probe_G38.ProbeG38):
         # First check if this is the first instance of a multi-probe object.
         if "G38.2" in self.gcode.ready_gcode_handlers:
             self.main_object = False
-            logging.info(f"\n\n" + "probeProbeG38multi: G38.2 already configured, skipping G38.n register_command.\n\n")
+            logging.info("probeProbeG38multi: G38.2 already configured, skipping G38.n register_command.")
         else:
             self.main_object = True
-            logging.info(f"\n\n" + "probeProbeG38multi: G38.2 not yet configured, running G38.n register_command.\n\n")
+            logging.info("probeProbeG38multi: G38.2 not yet configured, running G38.n register_command.")
             
             # NOTE: From LinuxCNC: https://linuxcnc.org/docs/2.6/html/gcode/gcode.html
             #       - G38.2 - Probe toward workpiece, stop on contact, signal error if failure.

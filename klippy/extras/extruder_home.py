@@ -86,17 +86,17 @@ class ExtruderHoming:
         # First check if this is the first instance of a multi-probe object.
         if "HOME_ACTIVE_EXTRUDER" in self.gcode.ready_gcode_handlers:
             self.main_object = False
-            logging.info("\n\nExtruderHoming: HOME_ACTIVE_EXTRUDER already configured, skipping HOME_ACTIVE_EXTRUDER register_command.\n\n")
+            logging.info("ExtruderHoming: HOME_ACTIVE_EXTRUDER already configured, skipping HOME_ACTIVE_EXTRUDER register_command.")
         else:
             self.main_object = True
-            logging.info("\n\nExtruderHoming: HOME_ACTIVE_EXTRUDER not yet configured, running HOME_ACTIVE_EXTRUDER register_command.\n\n")
+            logging.info("ExtruderHoming: HOME_ACTIVE_EXTRUDER not yet configured, running HOME_ACTIVE_EXTRUDER register_command.")
             
             self.gcode.register_command("HOME_ACTIVE_EXTRUDER",
                                         self.cmd_HOME_ACTIVE_EXTRUDER,
                                         when_not_ready=False,
                                         desc=self.cmd_HOME_ACTIVE_EXTRUDER_help)
         
-        logging.info(f"\n\nExtruderHoming: init complete\n\n")
+        logging.info(f"ExtruderHoming: init complete")
 
         # # NOTE: setup event handler to "finalize" the extruder trapq after
         # #       a drip move, but before the "flush_step_generation" call.
@@ -109,12 +109,12 @@ class ExtruderHoming:
     # #       and not duting regular XYZ homing; at least until I test otherwise).
     # def handle_drip_move_end(self, never_time, extruder_name):
     #     if (self.homing is True) and (extruder_name == self.extruder_name):
-    #         logging.info(f"\n\n{self.extruder_name} handle_drip_move_end: calling trapq_finalize_moves on '{extruder_name}'\n\n")
+    #         logging.info(f"{self.extruder_name} handle_drip_move_end: calling trapq_finalize_moves on '{extruder_name}'")
     #         self.trapq_finalize_moves(self.extruder_trapq, never_time)
     #     else:
     #         # NOTE: this will fire either on other instances of "ExtruderHoming",
     #         #       or also out of place, during homing of other axis.
-    #         logging.info(f"\n\n{self.extruder_name} handle_drip_move_end: skipped out of context trapq_finalize_moves \n\n")
+    #         logging.info(f"{self.extruder_name} handle_drip_move_end: skipped out of context trapq_finalize_moves ")
     
     # NOTE: the "register_mux_command" above registered a "HOME_EXTRUDER"
     #       command, which will end up calling this method.
@@ -207,7 +207,7 @@ class ExtruderHoming:
         #       toolhead object is passed because it has been modified to support homing
         #       the extruder axis too.
         # NOTE: "PrinterHoming.manual_home" then calls "HomingMove.homing_move".
-        logging.info(f"\n\ncmd_HOME_EXTRUDER: pos={str(pos)}\n\n")
+        logging.info(f"cmd_HOME_EXTRUDER: pos={str(pos)}")
         phoming.manual_home(toolhead=self.toolhead, endstops=endstops,
                             pos=pos, speed=speed,
                             # NOTE: argument passed to "mcu_endstop.home_start",
@@ -298,7 +298,7 @@ class ExtruderHoming:
         # NOTE: flag homing start
         self.homing = True
         
-        logging.info(f"\n\ncmd_HOME_EXTRUDER: pos={str(pos)}\n\n")
+        logging.info(f"cmd_HOME_EXTRUDER: pos={str(pos)}")
         phoming.manual_home(toolhead=toolhead, endstops=endstops,
                             pos=pos, speed=speed,
                             # NOTE: argument passed to "mcu_endstop.home_start",
@@ -335,7 +335,7 @@ class ExtruderHoming:
         
         # NOTE: adding a small amount just in case:
         # movepos = 1.1 * movepos  # TODO: check again that this was completely wrong.
-        logging.info(f"\n\nget_movepos: movepos={str(movepos)}\n\n")
+        logging.info(f"get_movepos: movepos={str(movepos)}")
 
         # NOTE: movepos will be the target coordinate for the move,
         #       and will also be the final position registered internally.
@@ -407,7 +407,7 @@ class ExtruderHoming:
     #     # self.sync_print_time()
     #     # return self.next_cmd_time
     #     lmt = self.toolhead.get_last_move_time()
-    #     logging.info(f"\n\nget_last_move_time: Last move time: {str(lmt)}\n\n")
+    #     logging.info(f"get_last_move_time: Last move time: {str(lmt)}")
     #     return lmt
     
     # def dwell(self, delay):
@@ -441,9 +441,9 @@ class ExtruderHoming:
     #     #       and now... It works! OMG :D Sometimes...
     #     # self.HOMING_DELAY = 4.0
 
-    #     logging.info(f"\n\ndwell: Dwelling for {str(self.HOMING_DELAY)} before homing. Current print_time: {str(self.toolhead.print_time)}\n\n")
+    #     logging.info(f"dwell: Dwelling for {str(self.HOMING_DELAY)} before homing. Current print_time: {str(self.toolhead.print_time)}")
     #     self.toolhead.dwell(self.HOMING_DELAY)
-    #     logging.info(f"\n\ndwell: Done sending dwell command. Current print_time: {str(self.toolhead.print_time)}\n\n")
+    #     logging.info(f"dwell: Done sending dwell command. Current print_time: {str(self.toolhead.print_time)}")
     
     # def move_extruder(self, newpos, speed, drip_completion):
     #     """
@@ -511,9 +511,9 @@ class ExtruderHoming:
     #     #       to use in that sense, and also ends up calling "toolhead.move".
     #     e_newpos = newpos[3]
     #     coord = [None, None, None, e_newpos]
-    #     logging.info(f"\n\nmove_toolhead: Moving {self.extruder.name} to {str(coord)} for homing.\n\n")  # Can be [None, None, None, 0.0]
+    #     logging.info(f"move_toolhead: Moving {self.extruder.name} to {str(coord)} for homing.")  # Can be [None, None, None, 0.0]
     #     self.toolhead.manual_move(coord=coord, speed=speed)
-    #     logging.info(f"\n\nmove_toolhead: move completed.\n\n")
+    #     logging.info(f"move_toolhead: move completed.")
         
     #     pass
 
@@ -526,16 +526,16 @@ class ExtruderHoming:
     #     """
 
     #     # NOTE: using "toolhead.move" should be similar to "toolhead.manual_move".
-    #     logging.info(f"\n\nmove_toolhead: moving toolhead to {str(newpos)} for homing.\n\n")
+    #     logging.info(f"move_toolhead: moving toolhead to {str(newpos)} for homing.")
     #     self.toolhead.move(newpos=newpos, speed=speed)
-    #     logging.info(f"\n\nmove_toolhead: move completed.\n\n")
+    #     logging.info(f"move_toolhead: move completed.")
 
     # def move_toolhead_drip(self, newpos, speed, drip_completion):
     #     """
     #     This method passes argument to the real toolhead "drip_move" method.
     #     """
 
-    #     logging.info(f"\n\nmove_toolhead_drip: drip-moving to {str(newpos)} for homing.\n\n")  # Can be [None, None, None, 0.0]
+    #     logging.info(f"move_toolhead_drip: drip-moving to {str(newpos)} for homing.")  # Can be [None, None, None, 0.0]
     #     self.toolhead.drip_move(newpos, speed, drip_completion)
 
     # def move_forced(self, newpos, speed, drip_completion):
@@ -545,7 +545,7 @@ class ExtruderHoming:
     #     # NOTE: try brute force?
     #     force_move = self.printer.lookup_object("force_move")
     #     pos = -50.0
-    #     logging.info(f"\n\nmove_forced: force-moving a distance of {str(pos)} for homing.\n\n")  # Can be [None, None, None, 0.0]
+    #     logging.info(f"move_forced: force-moving a distance of {str(pos)} for homing.")  # Can be [None, None, None, 0.0]
     #     self.stepper = force_move.manual_move(self.stepper, dist=pos, speed=speed, accel=100.0)
 
 
@@ -611,8 +611,8 @@ class ExtruderHoming:
     #     pos = self.th_orig_pos[:3] + [e_pos]  # Option 1
     #     #pos = self.toolhead.get_position()    # Option 2
         
-    #     logging.info(f"\n\nget_position output: {str(pos)}\n\n")
-    #     logging.info(f"\n\nget_position current TH pos: {str(self.toolhead.get_position())}\n\n")
+    #     logging.info(f"get_position output: {str(pos)}")
+    #     logging.info(f"get_position current TH pos: {str(self.toolhead.get_position())}")
     #     return pos
     
     # def set_position(self, newpos, homing_axes=()):
@@ -623,8 +623,8 @@ class ExtruderHoming:
     #     """
         
     #     # NOTE: Log stuff
-    #     logging.info(f"\n\nset_position: input={str(newpos)} homing_axes={str(homing_axes)}\n\n")
-    #     logging.info(f"\n\nset_position: old TH position={str(self.th_orig_pos)}\n\n")
+    #     logging.info(f"set_position: input={str(newpos)} homing_axes={str(homing_axes)}")
+    #     logging.info(f"set_position: old TH position={str(self.th_orig_pos)}")
 
     #     # TODO: What should I do here?
     #     # NOTE: I am assuming that the "set_position" applies to steppers.
@@ -684,7 +684,7 @@ class ExtruderHoming:
     #     pos = self.th_orig_pos[:3] + [newpos_e]
         
     #     # NOTE: Log stuff
-    #     logging.info(f"\n\nset_position: output={str(pos)}\n\n")
+    #     logging.info(f"set_position: output={str(pos)}")
 
     #     # TODO: I now need to update the "E" queue somehow.
     #     #       When switching extruder steppers, the Extruder class uses the set_position
@@ -725,7 +725,7 @@ class ExtruderHoming:
     #     #       This is expected for a complete regular homing move, guessing it shouldn't hurt.
     #     self.toolhead.set_position(pos)
 
-    #     logging.info(f"\n\nset_position: final TH position={str(self.toolhead.get_position())}\n\n")
+    #     logging.info(f"set_position: final TH position={str(self.toolhead.get_position())}")
     #     pass
     
     # def set_position2(self, newpos_e):
@@ -746,7 +746,7 @@ class ExtruderHoming:
     #     Called by HomingMove.calc_toolhead_pos
     #     """
         
-    #     logging.info(f"\n\ncalc_position input stepper_positions={str(stepper_positions)}\n\n")
+    #     logging.info(f"calc_position input stepper_positions={str(stepper_positions)}")
         
     #     # TODO: What should I do here?
     #     #       The manual_stepper code is similar to the CartKinematics method.
@@ -757,7 +757,7 @@ class ExtruderHoming:
     #     self.corrected_e_pos = stepper_positions[self.rail.get_name()]
     #     pos = [self.corrected_e_pos, 0., 0.]
 
-    #     logging.info(f"\n\ncalc_position return pos={str(pos)}\n\n")
+    #     logging.info(f"calc_position return pos={str(pos)}")
     #     return pos
 
 def load_config_prefix(config):

@@ -91,8 +91,8 @@ class CartKinematicsABC(CartKinematics):
         self.toolhead_axis_count = toolhead.axis_count  # len(self.axis_names)
         
         # Report
-        msg = f"\n\nCartKinematicsABC: starting setup with axes '{self.axis_names}'"
-        msg += f", indexes '{self.axis_config}', and expanded indexes '{self.axis}'\n\n"
+        msg = f"CartKinematicsABC: starting setup with axes '{self.axis_names}'"
+        msg += f", indexes '{self.axis_config}', and expanded indexes '{self.axis}'"
         logging.info(msg)
         
         if trapq is None:
@@ -233,14 +233,13 @@ class CartKinematicsABC(CartKinematics):
         self.rails[i] = rail
     
     def set_position(self, newpos, homing_axes):
-        logging.info("\n\n" +
-                     f"CartKinematicsABC.set_position: setting kinematic position of {len(self.rails)} rails " +
-                     f"with newpos={newpos} and homing_axes={homing_axes}\n\n")
+        logging.info(f"CartKinematicsABC.set_position: setting kinematic position of {len(self.rails)} rails " +
+                     f"with newpos={newpos} and homing_axes={homing_axes}")
         for i, rail in enumerate(self.rails):
-            logging.info(f"\n\nCartKinematicsABC: setting newpos={newpos} on stepper: {rail.get_name()}\n\n")
+            logging.info(f"CartKinematicsABC: setting newpos={newpos} on stepper: {rail.get_name()}")
             rail.set_position(newpos)
             if i in homing_axes:
-                logging.info(f"\n\nCartKinematicsABC: setting limits={rail.get_range()} on stepper: {rail.get_name()}\n\n")
+                logging.info(f"CartKinematicsABC: setting limits={rail.get_range()} on stepper: {rail.get_name()}")
                 # NOTE: Here each limit becomes associated to a certain "rail" (i.e. an axis).
                 #       If the rails were set up as "XYZ" in that order (as per "self.axis_names"),
                 #       the limits will now correspond to them in that same order.
@@ -251,7 +250,7 @@ class CartKinematicsABC(CartKinematics):
         # Helper for Safe Z Home
         # self.limits[2] = (1.0, -1.0)
         # TODO: reconsider ignoring the call, it can be produced by "safe_z_home".
-        logging.info(f"\n\nCartKinematicsABC WARNING: call to note_z_not_homed ignored.\n\n")
+        logging.info(f"CartKinematicsABC WARNING: call to note_z_not_homed ignored.")
         pass
     
     def home_axis(self, homing_state: Homing, axis, rail):
@@ -266,12 +265,12 @@ class CartKinematicsABC(CartKinematics):
         else:
             forcepos[axis] += 1.5 * (position_max - hi.position_endstop)
         # Perform homing
-        logging.info(f"\n\ncartesian_abc._home_axis: homing axis={axis} with forcepos={forcepos} and homepos={homepos}\n\n")
+        logging.info(f"cartesian_abc._home_axis: homing axis={axis} with forcepos={forcepos} and homepos={homepos}")
         homing_state.home_rails([rail], forcepos, homepos)
     
     def home(self, homing_state: Homing):
         # NOTE: "homing_state" is an instance of the "Homing" class.
-        logging.info(f"\n\ncartesian_abc.home: homing axis changed_axes={homing_state.changed_axes}\n\n")
+        logging.info(f"cartesian_abc.home: homing axis changed_axes={homing_state.changed_axes}")
         # Each axis is homed independently and in order
         toolhead = self.printer.lookup_object('toolhead')
         for axis in homing_state.get_axes():
@@ -285,7 +284,7 @@ class CartKinematicsABC(CartKinematics):
         self.reset_limits()
     
     def _check_endstops(self, move):
-        logging.info("\n\n" + f"cartesian_abc._check_endstops: triggered on {self.axis_names}/{self.axis} move.\n\n")
+        logging.info(f"cartesian_abc._check_endstops: triggered on {self.axis_names}/{self.axis} move.")
         end_pos = move.end_pos
         for i, axis in enumerate(self.axis_config):
             # TODO: Check if its better to iterate over "self.axis" instead,
@@ -300,9 +299,9 @@ class CartKinematicsABC(CartKinematics):
                      or end_pos[axis] > self.limits[i][1])):
                 if self.limits[i][0] > self.limits[i][1]:
                     # NOTE: self.limits will be "(1.0, -1.0)" when not homed, triggering this.
-                    msg = "".join(["\n\n" + f"cartesian_abc._check_endstops: Must home axis {self.axis_names[i]} first,",
+                    msg = "".join([f"cartesian_abc._check_endstops: Must home axis {self.axis_names[i]} first,",
                                    f"limits={self.limits[i]} end_pos[axis]={end_pos[axis]} ",
-                                   f"move.axes_d[axis]={move.axes_d[axis]}" + "\n\n"])
+                                   f"move.axes_d[axis]={move.axes_d[axis]}"])
                     logging.info(msg)
                     raise move.move_error(f"Must home axis {self.axis_names[i]} first")
                 raise move.move_error()
@@ -319,7 +318,7 @@ class CartKinematicsABC(CartKinematics):
             move (tolhead.Move): Instance of the Move class.
         """
         limit_checks = []
-        logging.info("\n\n" + f"cartesian_abc.check_move: checking move ending on {move.end_pos}.\n\n")
+        logging.info(f"cartesian_abc.check_move: checking move ending on {move.end_pos}.")
         for i, axis in enumerate(self.axis_config):
             # TODO: Check if its better to iterate over "self.axis" instead,
             #       see rationale in favor of "axis_config" above, at "_check_endstops".
@@ -330,7 +329,7 @@ class CartKinematicsABC(CartKinematics):
         
         # limits = self.limits
         # apos, bpos = [move.end_pos[axis] for axis in self.axis[:2]]  # move.end_pos[3:6]
-        # logging.info("\n\n" + f"cartesian_abc.check_move: checking move ending on apos={apos} and bpos={bpos}.\n\n")
+        # logging.info("" + f"cartesian_abc.check_move: checking move ending on apos={apos} and bpos={bpos}.")
         # if (apos < limits[0][0] or apos > limits[0][1]
         #     or bpos < limits[1][0] or bpos > limits[1][1]):
         #     self._check_endstops(move)

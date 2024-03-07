@@ -1387,7 +1387,7 @@ class ExtraGCodeMove(GCodeMove):
         self.axis_names = self.toolhead.axis_names
         self.axis_count = len(self.axis_names)
 
-        logging.info(f"\n\nGCodeMove.{self.toolhead_name}: starting setup with axes={self.axis_names} for toolhead_id='{self.toolhead_id}'\n\n")
+        logging.info(f"\n\nGCodeMove.{self.toolhead_name}: starting setup with axes={self.axis_names} for toolhead_id='{self.toolhead_id}'")
         
         self.printer = printer = config.get_printer()
         printer.register_event_handler("klippy:ready", self._handle_ready)

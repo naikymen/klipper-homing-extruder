@@ -240,7 +240,7 @@ class ControlPID:
             temp_array_len = 1
             
         avg_temp = float(temp_array_sum / temp_array_len)
-        # logging.info(f"\n\nget_smooth_temp: returning avg_temp={avg_temp} with samples={temp_array_len}\n\n")
+        # logging.info(f"get_smooth_temp: returning avg_temp={avg_temp} with samples={temp_array_len}")
         
         return avg_temp
     
@@ -325,7 +325,7 @@ class ControlPID:
         #logging.debug("pid: %f@%.3f -> diff=%f deriv=%f err=%f integ=%f co=%d",
         #    temp, read_time, temp_diff, derivative_term, temp_err, temp_integ, co)
         bounded_co = max(0., min(self.heater_max_power, co))
-        # logging.info(f"\n\nControlPID.temperature_update: using P={temp_err} I={temp_integ} D={derivative_term} co={co} and bounded_co={bounded_co}\n\n")
+        # logging.info(f"ControlPID.temperature_update: using P={temp_err} I={temp_integ} D={derivative_term} co={co} and bounded_co={bounded_co}")
         self.heater.set_pwm(read_time, bounded_co)
         
         # Store state for next measurement

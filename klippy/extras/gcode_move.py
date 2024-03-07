@@ -56,7 +56,7 @@ class GCodeMove:
         #   {'X': 0, 'Y': 1, 'Z': 2, 'E': 3}
         self.axis_map = {a: i for i, a in enumerate(list("".join(self.axis_triplets))[:self.min_axes] + ["E"])}
         
-        logging.info(f"\n\nGCodeMove: starting setup with axes: {self.axis_names}\n\n")
+        logging.info(f"GCodeMove: starting setup with axes: {self.axis_names}")
         
         printer = config.get_printer()
         self.printer: klippy.Printer = printer
@@ -213,22 +213,22 @@ class GCodeMove:
         # NOTE: Handler for "toolhead:set_position" and other events,
         #       sent at least by "toolhead.set_position" and also
         #       called by "_handle_activate_extruder" (and other methods).
-        logging.info("\n\n" + f"gcode_move.reset_last_position: triggered.\n\n")
+        logging.info(f"gcode_move.reset_last_position: triggered.")
         if self.is_printer_ready:
             # NOTE: The "" method is actually either "transform.get_position",
             #       "toolhead.get_position", or a default function returning "0.0" 
             #       for all axis.
             self.last_position = self.position_with_transform()
-            logging.info("\n\n" + f"gcode_move.reset_last_position: set self.last_position={self.last_position}\n\n")
+            logging.info(f"gcode_move.reset_last_position: set self.last_position={self.last_position}")
         else:
-            logging.info("\n\n" + f"gcode_move.reset_last_position: printer not ready self.last_position={self.last_position} not updated.\n\n")
+            logging.info(f"gcode_move.reset_last_position: printer not ready self.last_position={self.last_position} not updated.")
     
     # G-Code movement commands
     def cmd_G1(self, gcmd):
         
         # Move
         params = gcmd.get_command_parameters()
-        logging.info(f"\n\nGCodeMove: G1 starting setup with params={params}.\n\n")
+        logging.info(f"GCodeMove: G1 starting setup with params={params}.")
         try:
             # NOTE: XYZ(ABC) move coordinates.
             for pos, axis in enumerate(list(self.axis_map)[:-1]):
@@ -236,7 +236,7 @@ class GCodeMove:
                     if axis not in self.axis_names:
                         raise self.printer.command_error(f"G1 error: you must configure the {axis} axis in order to use it.")
                     v = float(params[axis])
-                    logging.info(f"\n\nGCodeMove: parsed axis={axis} with value={v}\n\n")
+                    logging.info(f"GCodeMove: parsed axis={axis} with value={v}")
                     if not self.absolute_coord:
                         # value relative to position of last move
                         self.last_position[pos] += v
@@ -246,7 +246,7 @@ class GCodeMove:
             # NOTE: extruder move coordinates.
             if 'E' in params:
                 v = float(params['E']) * self.extrude_factor
-                logging.info(f"\n\nGCodeMove: parsed axis=E with value={v}\n\n")
+                logging.info(f"GCodeMove: parsed axis=E with value={v}")
                 if not self.absolute_coord or not self.absolute_extrude:
                     # value relative to position of last move
                     self.last_position[-1] += v

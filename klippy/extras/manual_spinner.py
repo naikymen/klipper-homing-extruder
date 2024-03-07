@@ -79,7 +79,7 @@ class ManualSpinner(manual_stepper.ManualStepper):
         Logic borrowed from "delayed_gcode.py".
         """
         self.toolhead = self.printer.lookup_object('toolhead')
-        logging.info(f"\n\nmanual_stepper.handle_ready: registering self.spin_timer.\n\n")
+        logging.info(f"manual_stepper.handle_ready: registering self.spin_timer.")
         
         # waketime = self.time_at_print_time()
         waketime = self.reactor.NEVER
@@ -121,15 +121,15 @@ class ManualSpinner(manual_stepper.ManualStepper):
 
         # Put the command's data in the command queue.
         self.cmd_queue.put(spin_params, block=False)
-        logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: queuing command with spin_params={spin_params} self.spin_speed={self.spin_speed} self.cmd_queue.unfinished_tasks={self.cmd_queue.unfinished_tasks}\n\n")
+        logging.info(f"cmd_SPIN_MANUAL_STEPPER: queuing command with spin_params={spin_params} self.spin_speed={self.spin_speed} self.cmd_queue.unfinished_tasks={self.cmd_queue.unfinished_tasks}")
 
         # Wake the timer at system_print_time if it is dead.
         if (self.reactor.NEVER == self.spin_timer.waketime):
             system_print_time = self.time_at_print_time()
             self.reactor.update_timer(self.spin_timer, system_print_time)
-            logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: timer dead. Triggering do_spin_move at waketime={system_print_time}.\n\n")
+            logging.info(f"cmd_SPIN_MANUAL_STEPPER: timer dead. Triggering do_spin_move at waketime={system_print_time}.")
         else:
-            logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: timer alive, doing nothing.\n\n")
+            logging.info(f"cmd_SPIN_MANUAL_STEPPER: timer alive, doing nothing.")
 
         # Release waiting threads: let the spin_move callback count unfinished tasks.
         self.cmd_event.set()
@@ -138,10 +138,10 @@ class ManualSpinner(manual_stepper.ManualStepper):
         # (covers "self.spin_timer.waketime == self.reactor.NEVER").
         # system_print_time = self.time_at_print_time()
         # if (system_print_time < self.spin_timer.waketime):
-        #     logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: system_print_time is before waketime, triggering do_spin_move at waketime={system_print_time}.\n\n")
+        #     logging.info(f"cmd_SPIN_MANUAL_STEPPER: system_print_time is before waketime, triggering do_spin_move at waketime={system_print_time}.")
         #     self.reactor.update_timer(self.spin_timer, system_print_time)
         # else:
-        #     logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: system_print_time is after waketime, doing nothing.\n\n")
+        #     logging.info(f"cmd_SPIN_MANUAL_STEPPER: system_print_time is after waketime, doing nothing.")
 
         # if (self.cmd_queue.unfinished_tasks == 0) and (not self.spin_speed):
         #     # Wake up the timer function "now" only if the queue is empty,
@@ -156,13 +156,13 @@ class ManualSpinner(manual_stepper.ManualStepper):
         #     # If the timer is set to wake up later on, then wake it up earlier.
         #     if system_print_time < self.spin_timer.waketime:
         #         self.reactor.update_timer(self.spin_timer, system_print_time)
-        #         logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: All tasks done. Triggering do_spin_move at waketime={system_print_time}.\n\n")
+        #         logging.info(f"cmd_SPIN_MANUAL_STEPPER: All tasks done. Triggering do_spin_move at waketime={system_print_time}.")
         #     else:
-        #         logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: All tasks done. Triggering do_spin_move at original waketime={self.spin_timer.waketime}.\n\n")
+        #         logging.info(f"cmd_SPIN_MANUAL_STEPPER: All tasks done. Triggering do_spin_move at original waketime={self.spin_timer.waketime}.")
             
         # else:
         #     # Let the timer update itself.
-        #     logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: letting do_spin_move trigger itself.\n\n")
+        #     logging.info(f"cmd_SPIN_MANUAL_STEPPER: letting do_spin_move trigger itself.")
 
         # # Put the command's data in the command queue.
         # if (self.cmd_queue.unfinished_tasks == 0) and (not self.spin_speed):
@@ -170,12 +170,12 @@ class ManualSpinner(manual_stepper.ManualStepper):
         #     # and the stepper is not actively spinning.
         #     # self.reactor.update_timer(self.spin_timer, self.reactor.NOW)
         #     waketime = self.time_at_print_time()
-        #     logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: All tasks done. Triggering do_spin_move at waketime={waketime}.\n\n")
+        #     logging.info(f"cmd_SPIN_MANUAL_STEPPER: All tasks done. Triggering do_spin_move at waketime={waketime}.")
         #     self.reactor.update_timer(self.spin_timer, waketime)
         #     self.cmd_queue.put(spin_params, block=False)
         # else:
         #     # Let the timer update itself.
-        #     logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: letting do_spin_move trigger itself.\n\n")
+        #     logging.info(f"cmd_SPIN_MANUAL_STEPPER: letting do_spin_move trigger itself.")
         #     self.cmd_queue.put(spin_params, block=False)
 
         # # If the speed is not set, then the stepper must be idling.
@@ -216,7 +216,7 @@ class ManualSpinner(manual_stepper.ManualStepper):
         old_speed = self.spin_params[1]
 
         # Verbooooseeee
-        logging.info(f"\n\ndo_spin_move: called at eventtime={eventtime} est_print_time={est_print_time} with next_cmd_time={self.next_cmd_time} toolhead.print_time={print_time} new_spin_params={new_spin_params} old_speed={old_speed}\n\n")
+        logging.info(f"do_spin_move: called at eventtime={eventtime} est_print_time={est_print_time} with next_cmd_time={self.next_cmd_time} toolhead.print_time={print_time} new_spin_params={new_spin_params} old_speed={old_speed}")
         
         # If a new command is available, get the updated speed.
         if new_spin_params:
@@ -257,7 +257,7 @@ class ManualSpinner(manual_stepper.ManualStepper):
             # If the previous speed is 0 (or None) but 
             # the requested speed is not 0 (or None), 
             # then queue rotation startup commands.
-            logging.info(f"\n\ndo_spin_move: startup with self.spin_params={self.spin_params}\n\n")
+            logging.info(f"do_spin_move: startup with self.spin_params={self.spin_params}")
             
             # Calculate move coordinates from the last commanded position
             movedist = self.spin_params[0]  # MOVE
@@ -324,7 +324,7 @@ class ManualSpinner(manual_stepper.ManualStepper):
             # If the requested speed is not 0, and the stepper is "spinning", cruise.
             # NOTE: This step is triggered "~crustime/2" seconds before the end of the 
             #       startup move.
-            logging.info(f"\n\ndo_spin_move: cruising with self.spin_params={self.spin_params}\n\n")
+            logging.info(f"do_spin_move: cruising with self.spin_params={self.spin_params}")
 
             # Do the move
             if self.spin_speed == self.spin_params[1]:
@@ -381,7 +381,7 @@ class ManualSpinner(manual_stepper.ManualStepper):
             # Queue another cruise if none are left
             # TODO: this might not be "thread-safe". This cruise could be queued after a brake GCODE command, causing trouble.
             # if self.cmd_queue.unfinished_tasks == 0:
-            #     logging.info(f"\n\ndo_spin_move: no tasks left, queuing a cruise with self.spin_params={self.spin_params}\n\n")
+            #     logging.info(f"do_spin_move: no tasks left, queuing a cruise with self.spin_params={self.spin_params}")
             #     self.cmd_queue.put(self.spin_params, block=False)
         
         # Brake move (decelerate).
@@ -389,7 +389,7 @@ class ManualSpinner(manual_stepper.ManualStepper):
             # If the requested speed is zero, but
             # the state is still "spinning", then
             # signal a breaking move.
-            logging.info(f"\n\ndo_spin_move: breaking with self.spin_params={self.spin_params}\n\n")
+            logging.info(f"do_spin_move: breaking with self.spin_params={self.spin_params}")
 
             # Calculate breaking distance.
             initial_speed = old_speed           # Old SPEED, from previous self.spin_params[1]
@@ -451,7 +451,7 @@ class ManualSpinner(manual_stepper.ManualStepper):
             self.spin_speed = 0.0
 
         else:
-            logging.info(f"\n\ndo_spin_move: NO CONDITION MATCHED with self.spin_speed={self.spin_speed} self.spin_params={self.spin_params}\n\n")    
+            logging.info(f"do_spin_move: NO CONDITION MATCHED with self.spin_speed={self.spin_speed} self.spin_params={self.spin_params}")    
         
         # Mark the current queue task as done,
         # only if new spin parameters arrived.
@@ -459,7 +459,7 @@ class ManualSpinner(manual_stepper.ManualStepper):
             self.cmd_queue.task_done()
 
         # Update the timer's next firing time.
-        logging.info(f"\n\ndo_spin_move: function ended with waketime={waketime}\n\n")
+        logging.info(f"do_spin_move: function ended with waketime={waketime}")
         return waketime
 
     def break_dist(self, speed, accel):
@@ -470,7 +470,7 @@ class ManualSpinner(manual_stepper.ManualStepper):
         return break_distance
 
     def do_start(self, speed, accel, sync=True):
-        logging.info(f"\n\ndo_start: called with accel={accel} and speed={speed}")
+        logging.info(f"do_start: called with accel={accel} and speed={speed}")
 
         self.sync_print_time()
         cp = self.rail.get_commanded_position()
@@ -490,11 +490,11 @@ class ManualSpinner(manual_stepper.ManualStepper):
         # Increment "self.next_cmd_time", call "generate_steps" and "trapq_finalize_moves".
         self.gen_stps_fin_moves(movetime, sync)
 
-        logging.info(f"\n\ndo_start: sent at next_cmd_time={self.next_cmd_time} and movetime={movetime}")
+        logging.info(f"do_start: sent at next_cmd_time={self.next_cmd_time} and movetime={movetime}")
         return movetime
 
     def do_cruise(self, dist, speed, sync=True):
-        logging.info(f"\n\ndo_cruise: called with dist={dist} and speed={speed}")
+        logging.info(f"do_cruise: called with dist={dist} and speed={speed}")
 
         # self.sync_print_time()
         cp = self.rail.get_commanded_position()
@@ -518,11 +518,11 @@ class ManualSpinner(manual_stepper.ManualStepper):
         # Increment "self.next_cmd_time", call "generate_steps" and "trapq_finalize_moves".
         self.gen_stps_fin_moves(movetime, sync)
 
-        logging.info(f"\n\ndo_cruise: sent at next_cmd_time={self.next_cmd_time} and movetime={movetime}")
+        logging.info(f"do_cruise: sent at next_cmd_time={self.next_cmd_time} and movetime={movetime}")
         return movetime
 
     def do_cruise_change(self, dist, speed_i, speed_f, accel, sync=True):
-        logging.info(f"\n\ndo_cruise_change: called with dist={dist} and speed_i={speed_i} speed_f={speed_f}")
+        logging.info(f"do_cruise_change: called with dist={dist} and speed_i={speed_i} speed_f={speed_f}")
 
         # self.sync_print_time()
         cp = self.rail.get_commanded_position()
@@ -557,11 +557,11 @@ class ManualSpinner(manual_stepper.ManualStepper):
         # Increment "self.next_cmd_time", call "generate_steps" and "trapq_finalize_moves".
         self.gen_stps_fin_moves(movetime, sync)
 
-        logging.info(f"\n\ndo_cruise: sent at next_cmd_time={self.next_cmd_time} and movetime={movetime}")
+        logging.info(f"do_cruise: sent at next_cmd_time={self.next_cmd_time} and movetime={movetime}")
         return movetime
 
     def do_break(self, speed, decel, sync=True):
-        logging.info(f"\n\ndo_break: called with decel={decel} and speed={speed}")
+        logging.info(f"do_break: called with decel={decel} and speed={speed}")
 
         # self.sync_print_time()
         cp = self.rail.get_commanded_position()
@@ -584,7 +584,7 @@ class ManualSpinner(manual_stepper.ManualStepper):
         # Increment "self.next_cmd_time", call "generate_steps" and "trapq_finalize_moves".
         self.gen_stps_fin_moves(movetime, sync)
 
-        logging.info(f"\n\ndo_break: sent at next_cmd_time={self.next_cmd_time} and movetime={movetime}")
+        logging.info(f"do_break: sent at next_cmd_time={self.next_cmd_time} and movetime={movetime}")
         return movetime
     
     def gen_stps_fin_moves(self, movetime, sync):
