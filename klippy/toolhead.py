@@ -454,7 +454,7 @@ class ToolHead:
         
         # Dictionary to map axes to their indexes in the position vector "self.commanded_pos".
         self.axis_map = {a: i for i, a in enumerate(list(self.ax_letters)[:self.min_axes] + ["E"])}
-        self.axis_config = [a[x] for x in self.axis_names]
+        self.axis_config = [self.axis_map[x] for x in self.axis_names]
         logging.info(f"ToolHead: setup axis_map to '{self.axis_map}' and axis_config to '{self.axis_config}'.")
 
         # Which of the kinematic (non-extruder) axes are limited by the general acceleration setting.
