@@ -528,13 +528,18 @@ class ToolHead:
         
         # NOTE: check TRAPQ for the extra ABC axes here.
         # TODO: rewite this part to setup an arbitrary amount of axis, relying on the specification (XYZABC).
-        if len(self.axis_names) == 6:
-            logging.info(f"ToolHead: setting up additional ABC trapq.")
-        elif len(self.axis_names) > 3:
-            msg = f"Error loading toolhead with '{self.axis_names}' ({len(self.axis_names)}) axes is unsupported."
-            msg += " Use either XYZ (3) or XYZABC (6) axes."
+        #if len(self.axis_names) == 0:
+        #    msg = f"Error loading toolhead with '{self.axis_names}' ({len(self.axis_names)})."
+        #    msg += " At least one axis must be configured. Use 'none' kinematics otherwise."
+        #    logging.exception(msg)
+        #    raise config.error(msg)
+        if len(self.axis_names) > 6:
+            msg = f"Error loading toolhead with '{self.axis_names}' ({len(self.axis_names)})."
+            msg += " No more than 6 axes can be configured for now."
             logging.exception(msg)
             raise config.error(msg)
+        elif self.min_axes > 3:
+            logging.info(f"ToolHead: setting up additional ABC trapq.")
         
         # NOTE: load the gcode objects (?)
         gcode: GCodeDispatch = self.printer.lookup_object('gcode')
