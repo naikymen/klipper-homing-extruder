@@ -89,6 +89,7 @@ class CartKinematicsABC(CartKinematics):
         
         # Total axis count from the toolhead.
         self.toolhead_axis_count = toolhead.axis_count  # len(self.axis_names)
+        self.toolhead_pos_length = toolhead.pos_length
         
         # Report
         msg = f"CartKinematicsABC: starting setup with axes '{self.axis_names}'"
@@ -257,7 +258,7 @@ class CartKinematicsABC(CartKinematics):
         # Determine movement
         position_min, position_max = rail.get_range()
         hi = rail.get_homing_info()
-        homepos = [None for i in range(self.toolhead_axis_count + 1)]
+        homepos = [None for i in range(self.toolhead_pos_length)]
         homepos[axis] = hi.position_endstop
         forcepos = list(homepos)
         if hi.positive_dir:

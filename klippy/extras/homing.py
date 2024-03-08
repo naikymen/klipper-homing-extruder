@@ -679,7 +679,11 @@ class PrinterHoming:
             kin = toolhead.kinematics[kin_axes]
             logging.info(f"PrinterHoming.cmd_G28: checking if kin axes={kin.axis} have been requested to home.")
             if any(i in kin.axis for i in axes):
-                self.home_axes(kin=kin, homing_axes=[a for a in axes if a in kin.axis])
+                # NOTE: The "kin.axis" object contains indexes for the axies it handles.
+                #       For example: [0, 1, 2] for XYZ, [3, 4] for AB, etc.
+                homing_axes = [a for a in axes if a in kin.axis]
+                logging.info(f"PrinterHoming.cmd_G28: homing {homing_axes} axes of the {kin.axis} kinematic.")
+                self.home_axes(kin=kin, homing_axes=homing_axes)
         
         # # NOTE: XYZ homing.
         # kin = toolhead.get_kinematics()
