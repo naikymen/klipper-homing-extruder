@@ -98,7 +98,7 @@ class Move:
             inv_move_d = 1. / move_d
         
         # NOTE: Compute a ratio between each component of the displacement
-        #       vector and the total magnitude.
+        #       vector and the total magnitude. Ratios can be negative.
         self.axes_r = [d * inv_move_d for d in axes_d]
 
         # NOTE: Scale the acceleration of the move, such that the toolhead's max
