@@ -103,10 +103,12 @@ class Move:
 
         # NOTE: Scale the acceleration of the move, such that the toolhead's max
         #       acceleration only limits the limited axes.
-        self.axes_r_limited = sum([self.axes_r[i] for i in self.limited_axes])
+        self.axes_r_limited = sum([abs(self.axes_r[i]) for i in self.limited_axes])
         if self.axes_r_limited > 0.0:
             self.accel = min(toolhead.max_accel / self.axes_r_limited, 99999999.9)
             logging.info(f"Move: scale acceleration from {toolhead.max_accel} to {self.accel}.")
+        else:
+            logging.info(f"Move: acceleration set to {self.accel}.")
         
         # NOTE: Compute the mimimum time that the move will take (at speed == max speed).
         #       The time will be greater if the axes must accelerate during the move.

@@ -229,7 +229,7 @@ class GCodeMove:
         # Move
         params = gcmd.get_command_parameters()
         logging.info(f"GCodeMove: G1 starting setup with params={params}")
-        logging.info(f"GCodeMove: current G1 modes are absolute_coord{self.absolute_coord} and absolute_extrude={self.absolute_extrude}")
+        logging.info(f"GCodeMove: current G1 modes are absolute_coord={self.absolute_coord} and absolute_extrude={self.absolute_extrude}")
         try:
             # NOTE: XYZ(ABC) move coordinates.
             for pos, axis in enumerate(list(self.axis_map)[:-1]):
