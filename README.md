@@ -1,4 +1,4 @@
-# Klipper for CNC 
+# Klipper for CNC
 
 Welcome to my fork of the Klipper project, with home-able extruders, configurable extra ABC axes, and CNC-style probing!
 
@@ -10,7 +10,7 @@ Use cases: as far as I can tell.
 - Syringe extruders.
 - Pipetting / liquid-handling robots / lab-automation.
 
-Follow the discussion over at Klipper's forum: https://klipper.discourse.group/t/12249
+Follow the discussion over at Klipper's forum: <https://klipper.discourse.group/t/12249>
 
 Critical limitations: you should know this beforehand.
 
@@ -19,6 +19,11 @@ Critical limitations: you should know this beforehand.
   - Note: motion on the ABC axes will not affect maximum speed of the XYZ axes, which will match the desired feedrate (`F` parameter).
 - Most of the modules in "extra" have not been tested and might not work.
 - Limitations stated further down this readme.
+
+Disclaimer:
+
+- This is an **EXPERIMENTAL** fork. Consider asking around (e.g. reach out through [the forum](https://klipper.discourse.group/t/12249)) before giving it a try.
+- You are likely to find bugs lurking in my modifications. Always protect your machine (and youself) first.
 
 [![Klipper](docs/img/klipper-logo-small.png)](https://www.klipper3d.org/)
 
@@ -105,7 +110,7 @@ Other changes:
 
 ## Contributing: Interested in CNC stuff for Klipper?
 
-Not-so-minor modifications to Klippy's core were made to accommodate these features. 
+Not-so-minor modifications to Klippy's core were made to accommodate these features.
 
 ### Pull requests
 
@@ -113,19 +118,19 @@ Pull requests are very welcome over here, and will be merged quickly.
 
 ### Buy me a beer
 
-Show your love for this project through Liberapay: https://liberapay.com/naikymen <3
+Show your love for this project through Liberapay: <https://liberapay.com/naikymen> <3
 
 Also consider donating to upstream Klipper and its appendages.
 
 ### Chat
 
-Let's chat over here: https://klipper.discourse.group/t/klipper-forks-for-cnc/5698
+Let's chat over here: <https://klipper.discourse.group/t/klipper-forks-for-cnc/5698>
 
 Cheers!
 
 ## Configs
 
-See examples here: https://gitlab.com/pipettin-bot/forks/firmware/klipper-stack/-/tree/pipetting/printer_data/config
+See examples here: <https://gitlab.com/pipettin-bot/forks/firmware/klipper-stack/-/tree/pipetting/printer_data/config>
 
 These are meant as _soft_ reference configs; you _must_ adjust them to match your setup before using them.
 
@@ -185,7 +190,7 @@ Important TODOs:
 
 - Run tests! Only basic functionality has been covered.
 - "Extra" steppers not tested (i.e. `stepper_a1`, etc.)
-- `SET_KINEMATIC_POSITION` would _sometimes_ cause `MCU 'tools' shutdown: Rescheduled timer in the past`. I find this error hard to reproduce. Maybe its my UNO's fault. Must track down the cause. See: https://github.com/naikymen/klipper-for-cnc/issues/6
+- `SET_KINEMATIC_POSITION` would _sometimes_ cause `MCU 'tools' shutdown: Rescheduled timer in the past`. I find this error hard to reproduce. Maybe its my UNO's fault. Must track down the cause. See: <https://github.com/naikymen/klipper-for-cnc/issues/6>
 - Consider if it would have been better/simpler to use multiple extruder axes instead of full "cartesian" axes. Adding axes one by one would have been simpler this way. For now, full stepper_a, stepper_b, and stepper_c config sections are mandatory.
 
 ### PID sample averaging
@@ -237,9 +242,30 @@ Usage notes:
 - If "homing parameters" are added to an extruder's config, it will need to be homed (or unlocked with `SET_KINEMATIC_POSITION`) before it can be moved, even if the corresponding `[extruder_home extruder]` is not set.
 - Note that the `[extruder]` must have an "endstop_pin" defined for it to be home-able. It is otherwise setup as a "regular" extruder, and a corresponding `[extruder_home]` section will not work as exected. For instance, a `HOME_EXTRUDER EXTRUDER=extruder` command fail with this error: `'MCU_stepper' object has no attribute 'get_endstops'`
 
+### Symmetric Extruder
+
+A new configuration option was added to `[extruder]`, called `symmetric_speed_limits`.
+
+Setting this parameter to `True` will force speed and acceleration limits on all moves involving the extruder.
+
+The limits are derived from `max_extrude_only_velocity` and `max_extrude_only_accel` as usual.
+The difference is in that they will be applied to all moves (and not to "extrude only" moves).
+
+```yaml
+[extruder]
+# ...
+# ...
+# When 'True', this new parameter allows applying speed limits symmetrically
+# to extruder moves, which will always be enforced. Then 'False' (the default)
+# the limits remain conditional (e.g. to the direction) as it is done for
+# regular 3D-printer extruders.
+symmetric_speed_limits: True
+# ...
+```
+
 ### Single-probe
 
-Simple enough. For reference, read: https://www.klipper3d.org/Config_Reference.html#probe
+Simple enough. For reference, read: <https://www.klipper3d.org/Config_Reference.html#probe>
 
 ```yaml
 [probe_G38]
@@ -285,7 +311,7 @@ For convenience, their status can show up next to the endstops in Mainsail:
 
 # Installation
 
-The easiest way is to use a KIAUH "klipper_repos.txt" file. Details at: https://github.com/th33xitus/kiauh/blob/master/klipper_repos.txt.example
+The easiest way is to use a KIAUH "klipper_repos.txt" file. Details at: <https://github.com/th33xitus/kiauh/blob/master/klipper_repos.txt.example>
 
 1. SSH into the Pi.
 2. Copy "klipper_repos.txt.example" to "klipper_repos.txt".
@@ -298,6 +324,7 @@ The easiest way is to use a KIAUH "klipper_repos.txt" file. Details at: https://
 8. Choose option "`1) Set custom Klipper repository`".
 9. Choose the option corresonding to "`naikymen/klipper-for-cnc -> pipetting`"
 10. Use KIAUH to uninstall and reinstall Klipper.
+11. Have fun!
 
 ## Updates through moonraker
 

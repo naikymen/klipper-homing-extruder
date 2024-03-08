@@ -308,7 +308,7 @@ class PrinterExtruder:
         self.instant_corner_v = config.getfloat(
             'instantaneous_corner_velocity', 1., minval=0.)
         # NOTE: This new parameter allows applying speed limits symmetrically
-        #       to extruder moves, which will apply always then 'True', or be
+        #       to extruder moves, which will apply always whens 'True', or be
         #       conditional (e.g. to the direction) when 'False' (default, as
         #       for regular 3D-printer extruders).
         self.symmetric = config.getboolean('symmetric_speed_limits', False)
