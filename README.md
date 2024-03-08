@@ -146,6 +146,7 @@ Most of the configuration is "stock". Only the `[printer]` section needs slightl
   - There must be at least one stepper in the Klipper configuration for each of these letters (e.g. if `axis` contains `X`, there must be a `[stepper_x]` section).
   - Partial specification is allowed for the `cartesian_abc` kinematics (e.g. only `XY` and no `Z`, or `XYZA` for a four axis machine).
   - The `E` axis must not be specified here. This setting is for `XYZ` and `ABC` axes only. Extruders are configured just as in regular Klipper.
+- `accel_limited_axes` (**experimental**): You can now define which axes draw acceleration from the shared pool (set by `max_accel`). Axes not included in this setting will behave (somewhat) like an extruder, scaling the total acceleration as needed.
 
 ```yaml
 [printer]
