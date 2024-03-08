@@ -59,7 +59,7 @@ class CartKinematicsABC(CartKinematics):
         
         # Configured set of axes (indexes) and their letter IDs. Can have length less or equal to 3.
         self.axis_config = deepcopy(axes_ids)   # list of length <= 3: [0, 1, 3], [3, 4], [3, 4, 5], etc.
-        self.axis_names: str = axis_set_letters      # char of length <= 3: "XYZ", "AB", "ABC", etc.
+        self.axis_names: str = axis_set_letters # char of length <= 3: "XYZ", "AB", "ABC", etc.
         self.axis_count = len(self.axis_names)  # integer count of configured axes (e.g. 2 for "XY").
         
         # Mapping dictionaries.

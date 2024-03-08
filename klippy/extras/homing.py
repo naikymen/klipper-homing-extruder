@@ -664,10 +664,10 @@ class PrinterHoming:
                 home_extruder = False
             # Home the extruder axis if possible.
             if home_extruder:
-                axes = list(range(toolhead.pos_length))
+                axes = toolhead.axis_config
             else:
                 # Home all axes, except the extruder axis.
-                axes = list(range(toolhead.pos_length))[:-1]
+                axes = toolhead.axis_config[:-1]
             # Example axes = [0, 1, 2]
             logging.info(f"PrinterHoming.cmd_G28: no specific axes requested, homing axes={axes}")
         
