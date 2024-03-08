@@ -1199,7 +1199,7 @@ class ToolHead:
             
         # NOTE: Kinematic move checks for E axis.
         if move.axes_d[-1]:
-            logging.info(f"toolhead.move: check_move on E move to {move.axes_d[-1]}.")
+            logging.info(f"toolhead.move: check_move on E move with displacement: {move.axes_d[-1]}")
             # NOTE: The extruder will check the move assuming that the last coordinate is the E axis.
             self.extruder.check_move(move)
         
