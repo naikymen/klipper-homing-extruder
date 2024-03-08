@@ -12,6 +12,12 @@ Use cases: as far as I can tell.
 
 Follow the discussion over at Klipper's forum: <https://klipper.discourse.group/t/12249>
 
+What you can expect:
+
+- Expect spending some time tinkering a bit and asking for help, it will then hopefully work just fine.
+- The latest release should be functional, but you are still likely to find bugs lurking in my modifications. [Ask for help](https://klipper.discourse.group/t/12249) or raise an issue if you find any.
+- Many 3D-printer features in klipper are not tested (e.g. bed meshing) and most kinematics are not adapted (e.g. polar).
+
 Critical limitations: you should know this beforehand.
 
 - Only the **cartesian** kinematic has been adapted. Others could be without much work, this is a good place for contributions.
@@ -20,10 +26,10 @@ Critical limitations: you should know this beforehand.
 - Most of the modules in "extra" have not been tested and might not work.
 - Limitations stated further down this readme.
 
-Disclaimer:
+Disclaimers:
 
 - This is an **EXPERIMENTAL** fork. Consider asking around (e.g. reach out through [the forum](https://klipper.discourse.group/t/12249)) before giving it a try.
-- You are likely to find bugs lurking in my modifications. Always protect your machine (and youself) first.
+- Always protect your machine (and youself) first.
 
 [![Klipper](docs/img/klipper-logo-small.png)](https://www.klipper3d.org/)
 
