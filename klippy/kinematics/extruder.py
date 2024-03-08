@@ -307,6 +307,11 @@ class PrinterExtruder:
             'max_extrude_only_distance', 50., minval=0.)
         self.instant_corner_v = config.getfloat(
             'instantaneous_corner_velocity', 1., minval=0.)
+        # NOTE: This new parameter allows applying speed limits symmetrically
+        #       to extruder moves, which will apply always then 'True', or be
+        #       conditional (e.g. to the direction) when 'False' (default, as
+        #       for regular 3D-printer extruders).
+        self.symmetric = config.getboolean('symmetric_speed_limits', False)
 
         # NOTE: Get the axis ID (index) of the extruder axis. Will
         #       be equal to the amount of axes in the toolhead,
@@ -373,8 +378,9 @@ class PrinterExtruder:
                 "See the 'min_extrude_temp' config option for details")
         
         # NOTE: other extrusion checks.
-        if (not move.axes_d[0] and not move.axes_d[1]) or axis_r < 0.:
+        if (not move.axes_d[0] and not move.axes_d[1]) or axis_r < 0. or self.symmetric:
             # Extrude only move (or retraction move) - limit accel and velocity
+            logging.info(f"PrinterExtruder.check_move: retraction move or E-only move. Limiting move speed and acceleration.")
             if abs(move.axes_d[-1]) > self.max_e_dist:
                 raise self.printer.command_error(
                     "Extrude only move too long (%.3fmm vs %.3fmm)\n"
@@ -383,6 +389,9 @@ class PrinterExtruder:
             inv_extrude_r = 1. / abs(axis_r)
             move.limit_speed(self.max_e_velocity * inv_extrude_r,
                              self.max_e_accel * inv_extrude_r)
+        # NOTE: The following clause is run when the move is not a retraction, 
+        #       and it involves some motion in the XY direction (e.g. when printing).
+        #       It seems to check if the extruder is extruding too much.
         elif axis_r > self.max_extrude_ratio:
             if move.axes_d[-1] <= self.nozzle_diameter * self.max_extrude_ratio:
                 # Permit extrusion if amount extruded is tiny
@@ -395,7 +404,7 @@ class PrinterExtruder:
                 "See the 'max_extrude_cross_section' config option for details"
                 % (area, self.max_extrude_ratio * self.filament_area))
         
-        # NOTE: implement software limit checks.
+        # NOTE: Software limit checks.
         self.extruder_stepper.check_move_limits(move)
 
     def set_position(self, newpos_e, homing_axes=(), print_time=None):
