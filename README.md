@@ -144,7 +144,8 @@ Most of the configuration is "stock". Only the `[printer]` section needs slightl
 - `kinematics_abc` (new): The ABC set of axes must also use one of the `xxx_abc` kinematics.
 - `axis` (new): This string specifies exactly which axes need to be configured, by their common single-letter name in the CNC world.
   - There must be at least one stepper in the Klipper configuration for each of these letters (e.g. if `axis` contains `X`, there must be a `[stepper_x]` section).
-  - Partial specification is allowed for the `cartesian_abc` kinematics (e.g. only `XY` and no `Z`)
+  - Partial specification is allowed for the `cartesian_abc` kinematics (e.g. only `XY` and no `Z`, or `XYZA` for a four axis machine).
+  - The `E` axis must not be specified here. This setting is for `XYZ` and `ABC` axes only. Extruders are configured just as in regular Klipper.
 
 ```yaml
 [printer]
@@ -157,6 +158,12 @@ max_accel: 1000
 # Add ABC kinematics to the toolhead:
 kinematics_abc: cartesian_abc
 axis: XYZABC
+# This tells the Moves which axes can "consume"
+# acceleration from the above settings. It defaults
+# to all axes. Any axes omitted from this setting
+# will accelerate as fast as required (which might
+# be impossible for your machine. BE WARNED).
+# accel_limited_axes: XYZABC
 ```
 
 Then configure the additional ABC steppers, exactly the ones specified in the `axis` parameter. For example, the ABC steppers can be configured just as you would the XYZ:

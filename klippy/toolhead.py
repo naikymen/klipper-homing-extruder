@@ -434,8 +434,13 @@ class ToolHead:
         self.axis_count = len(self.axis_names)
         
         # Axis sets and names for them are partially hardcoded all around.
-        self.axis_triplets = ["XYZ", "ABC", "UVW"]
+        self.axis_triplets = ["XYZ", "ABC"]  # TODO: generalize the code to support "UVW" axes.
         self.ax_letters = "".join(self.axis_triplets)
+        for l in self.axis_names:
+            if l not in self.ax_letters:
+                msg = f"ToolHead config error: axis '{l}' is not allowed. Allowed values are '{self.ax_letters}'."
+                logging.exception(msg)
+                raise config.error(msg)
         # Find the minimum amount of axes needed for the requested axis triplets.
         # For example, 1 triplet would be required for "XYZ" or "ABC", but 2
         # triplets are needed for any mixing of those (e.g. "XYZAB").
