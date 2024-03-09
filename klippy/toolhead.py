@@ -1481,35 +1481,30 @@ class ToolHead:
                      'square_corner_velocity': self.square_corner_velocity})
         return res
 
-    @staticmethod
-    def concat_kin_status(prev: dict, new: dict, kin):            
+    def concat_kin_status(self, prev: dict, new: dict, kin):            
         # Concatenate homed axes.
-        if 'homed_axes' in prev.keys():
-            prev['homed_axes'] += new['homed_axes']
-        else:
-            prev['homed_axes'] = new['homed_axes']
+        prev.setdefault('homed_axes', "")
+        prev['homed_axes'] += new.get('homed_axes', "")
         
         # Update minimum limits.
-        if 'axis_minimum' in prev.keys():
+        prev.setdefault('axis_minimum', self.Coord())
+        if kin.axes_min is not None:
             ref_lims: namedtuple = prev['axis_minimum']
             kin_lims: namedtuple = kin.axes_min
             for axis in kin.axis_names.lower():
                 value = getattr(kin_lims, axis)
                 ref_lims = ref_lims._replace(**{axis: value})
             prev['axis_minimum'] = ref_lims
-        else:
-            prev['axis_minimum'] = kin.axes_min
 
         # Update maximum limits.
-        if 'axis_maximum' in prev.keys():
+        prev.setdefault('axis_maximum', self.Coord())
+        if kin.axes_max is not None:
             ref_lims: namedtuple = prev['axis_maximum']
             kin_lims: namedtuple = kin.axes_max
             for axis in kin.axis_names.lower():
                 value = getattr(kin_lims, axis)
                 ref_lims = ref_lims._replace(**{axis: value})
             prev['axis_maximum'] = ref_lims
-        else:
-            prev['axis_maximum'] = kin.axes_max
 
         # Add the missing properties.
         # WARN: This might be a bit hacky, but ok as long as all 

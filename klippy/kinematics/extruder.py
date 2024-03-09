@@ -118,7 +118,7 @@ class ExtruderStepper:
             result = {
                 'homed_axes': "".join(axes),
                 'axis_minimum': self.axes_min,
-                'axis_maximum': self.axes_max,
+                'axis_maximum': self.axes_max
             }
         return result
         
