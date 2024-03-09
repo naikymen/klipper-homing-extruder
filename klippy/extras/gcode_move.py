@@ -4,7 +4,7 @@
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import logging, klippy
-from gcode import GCodeDispatch
+from gcode import GCodeDispatch, GCodeCommand
 from extras.homing import Homing
 from copy import copy
 
@@ -397,33 +397,41 @@ class GCodeMove:
     
     cmd_GET_POSITION_help = (
         "Return information on the current location of the toolhead")
-    def cmd_GET_POSITION(self, gcmd):
+    def cmd_GET_POSITION(self, gcmd: GCodeCommand):
         
         # TODO: add ABC steppers to GET_POSITION.
         # TODO: add manual steppers to GET_POSITION.
         if self.axis_names != 'XYZ':
-            gcmd.respond_info(f'cmd_GET_POSITION: No support for {self.axis_names} axes. Only XYZ suported for now.')
+            gcmd.respond_info(f'cmd_GET_POSITION: Partial support for extruder position information. Only XYZABC is complete.')
         
         toolhead = self.printer.lookup_object(self.toolhead_id, None)
         
         if toolhead is None:
             raise gcmd.error("Printer not ready")
         
-        kin = toolhead.get_kinematics(axes=self.axis_names)
-        steppers = kin.get_steppers()
+        # TODO: Add information from the extruder kinematic, if any.
+        mcu_pos_list = []
+        stepper_pos_list = []
+        kin_pos_list = []
+        for kin_name, kin in toolhead.kinematics.items():
+            steppers = kin.get_steppers()
+            # MCU
+            mcu_pos = " ".join(["%s:%d" % (s.get_name(), s.get_mcu_position())
+                                for s in steppers])
+            mcu_pos_list.append(mcu_pos)
+            # Stepper
+            cinfo = [(s.get_name(), s.get_commanded_position()) for s in steppers]
+            stepper_pos = " ".join(["%s:%.6f" % (a, v) for a, v in cinfo])
+            stepper_pos_list.append(stepper_pos)
+            # Kinematic
+            kinfo = zip(kin.axis_names, kin.calc_position(dict(cinfo)))
+            kin_pos = " ".join(["%s:%.6f" % (a, v) for a, v in kinfo])
+            kin_pos_list.append(kin_pos)
         
-        # NOTE: the horror.
-        mcu_pos = " ".join(["%s:%d" % (s.get_name(), s.get_mcu_position())
-                            for s in steppers])
-        cinfo = [(s.get_name(), s.get_commanded_position()) for s in steppers]
-        stepper_pos = " ".join(["%s:%.6f" % (a, v) for a, v in cinfo])
-        kinfo = zip(self.axis_names, kin.calc_position(dict(cinfo)))
-        
-        kin_pos = " ".join(["%s:%.6f" % (a, v) for a, v in kinfo])
-        
+        # Toolhead
         toolhead_coords = toolhead.get_position()
         toolhead_pos = " ".join(["%s:%.6f" % (a, toolhead_coords[self.axis_map[a]])
-                                 for a in self.axis_names + "E"])
+                                for a in self.axis_names + "E"])
         
         gcode_pos = " ".join(["%s:%.6f"  % (a, self.last_position[self.axis_map[a]])
                               for a in self.axis_names + "E"])
@@ -441,7 +449,10 @@ class GCodeMove:
                           "gcode: %s\n"
                           "gcode base: %s\n"
                           "gcode homing: %s"
-                          % (mcu_pos, stepper_pos, kin_pos, toolhead_pos,
+                          % (" ".join(mcu_pos_list),
+                             " ".join(stepper_pos_list),
+                             " ".join(kin_pos_list),
+                             toolhead_pos,
                              gcode_pos, base_pos, homing_pos))
 
 def load_config(config):
