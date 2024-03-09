@@ -39,6 +39,7 @@ class GCodeMove:
 
         # Axis sets and names for them are partially hardcoded all around.
         self.axis_triplets = ["XYZ", "ABC", "UVW"]
+        self.axis_letters = "".join(self.axis_triplets)
         # Find the minimum amount of axes needed for the requested axis triplets.
         # For example, 1 triplet would be required for "XYZ" or "ABC", but 2
         # triplets are needed for any mixing of those (e.g. "XYZAB").
@@ -54,9 +55,9 @@ class GCodeMove:
         # Examples: 
         #   {'X': 0, 'Y': 1, 'Z': 2, 'A': 3, 'B': 4, 'C': 5, 'E': 6}
         #   {'X': 0, 'Y': 1, 'Z': 2, 'E': 3}
-        self.axis_map = {a: i for i, a in enumerate(list("".join(self.axis_triplets))[:self.min_axes] + ["E"])}
+        self.axis_map = {a: i for i, a in enumerate(list(self.axis_letters)[:self.min_axes] + ["E"])}
         
-        logging.info(f"GCodeMove: starting setup with axes: {self.axis_names}")
+        logging.info(f"GCodeMove: starting setup with axis_names='{self.axis_names}' and axis_map: '{self.axis_map}'")
         
         printer = config.get_printer()
         self.printer: klippy.Printer = printer
@@ -296,7 +297,7 @@ class GCodeMove:
     
     def cmd_G92(self, gcmd):
         # Set position
-        ax_names = list(self.axis_map)
+        ax_names = list(self.axis_map)  # e.g.: ["X", "Y", "Z", "A", "E"]
         offsets = [ gcmd.get_float(a, None) for a in ax_names ]
         for i, offset in enumerate(offsets):
             if offset is not None:
@@ -419,15 +420,19 @@ class GCodeMove:
         kinfo = zip(self.axis_names, kin.calc_position(dict(cinfo)))
         
         kin_pos = " ".join(["%s:%.6f" % (a, v) for a, v in kinfo])
-        toolhead_pos = " ".join(["%s:%.6f" % (a, v) for a, v in zip(
-            self.axis_names + "E", toolhead.get_position())])
         
-        gcode_pos = " ".join(["%s:%.6f"  % (a, v)
-                              for a, v in zip(self.axis_names + "E", self.last_position)])
-        base_pos = " ".join(["%s:%.6f"  % (a, v)
-                             for a, v in zip(self.axis_names + "E", self.base_position)])
-        homing_pos = " ".join(["%s:%.6f"  % (a, v)
-                               for a, v in zip(self.axis_names, self.homing_position)])
+        toolhead_coords = toolhead.get_position()
+        toolhead_pos = " ".join(["%s:%.6f" % (a, toolhead_coords[self.axis_map[a]])
+                                 for a in self.axis_names + "E"])
+        
+        gcode_pos = " ".join(["%s:%.6f"  % (a, self.last_position[self.axis_map[a]])
+                              for a in self.axis_names + "E"])
+        
+        base_pos = " ".join(["%s:%.6f"  % (a, self.base_position[self.axis_map[a]])
+                             for a in self.axis_names + "E"])
+        
+        homing_pos = " ".join(["%s:%.6f"  % (a, self.homing_position[self.axis_map[a]])
+                               for a in self.axis_names + "E"])
         
         gcmd.respond_info("mcu: %s\n"
                           "stepper: %s\n"
