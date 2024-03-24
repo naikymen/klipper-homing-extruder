@@ -31,15 +31,25 @@ class VirtualSD:
         # Register commands
         self.gcode = self.printer.lookup_object('gcode')
         for cmd in ['M20', 'M21', 'M23', 'M24', 'M25', 'M26', 'M27']:
-            self.gcode.register_command(cmd, getattr(self, 'cmd_' + cmd))
+            desc = getattr(self, 'cmd_' + cmd + '_help', None)
+            self.gcode.register_command(cmd, getattr(self, 'cmd_' + cmd), desc=desc)
+        
+        
         for cmd in ['M28', 'M29', 'M30']:
-            self.gcode.register_command(cmd, self.cmd_error)
+            desc = getattr(self, 'cmd_' + cmd + '_help', None)
+            self.gcode.register_command(cmd, self.cmd_error, desc=desc)
+        
         self.gcode.register_command(
             "SDCARD_RESET_FILE", self.cmd_SDCARD_RESET_FILE,
             desc=self.cmd_SDCARD_RESET_FILE_help)
         self.gcode.register_command(
             "SDCARD_PRINT_FILE", self.cmd_SDCARD_PRINT_FILE,
             desc=self.cmd_SDCARD_PRINT_FILE_help)
+    
+    cmd_M28_help = "Start writing to SD card."
+    cmd_M29_help = "Stop writing to SD card."
+    cmd_M30_help = "Delete a file on the SD card."
+    
     def handle_shutdown(self):
         if self.work_timer is not None:
             self.must_pause_work = True
@@ -149,6 +159,7 @@ class VirtualSD:
             filename = filename[1:]
         self._load_file(gcmd, filename, check_subdirs=True)
         self.do_resume()
+    cmd_M20_help = "List SD card contents"
     def cmd_M20(self, gcmd):
         # List SD card
         files = self.get_file_list()
@@ -156,9 +167,11 @@ class VirtualSD:
         for fname, fsize in files:
             gcmd.respond_raw("%s %d" % (fname, fsize))
         gcmd.respond_raw("End file list")
+    cmd_M21_help = "Initialize SD card"
     def cmd_M21(self, gcmd):
         # Initialize SD card
         gcmd.respond_raw("SD card ok")
+    cmd_M23_help = "Select SD file"
     def cmd_M23(self, gcmd):
         # Select SD file
         if self.work_timer is not None:
@@ -190,18 +203,22 @@ class VirtualSD:
         self.file_position = 0
         self.file_size = fsize
         self.print_stats.set_current_file(filename)
+    cmd_M24_help = "Start/resume SD print"
     def cmd_M24(self, gcmd):
         # Start/resume SD print
         self.do_resume()
+    cmd_M25_help = "Pause SD print"
     def cmd_M25(self, gcmd):
         # Pause SD print
         self.do_pause()
+    cmd_M26_help = "Set SD position"
     def cmd_M26(self, gcmd):
         # Set SD position
         if self.work_timer is not None:
             raise gcmd.error("SD busy")
         pos = gcmd.get_int('S', minval=0)
         self.file_position = pos
+    cmd_M27_help = "Report SD print status"
     def cmd_M27(self, gcmd):
         # Report SD print status
         if self.current_file is None:

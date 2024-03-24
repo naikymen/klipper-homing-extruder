@@ -340,8 +340,8 @@ class PrinterExtruder:
         gcode = self.printer.lookup_object('gcode')
         if self.name == 'extruder':
             toolhead.set_extruder(self, 0.)
-            gcode.register_command("M104", self.cmd_M104)
-            gcode.register_command("M109", self.cmd_M109)
+            gcode.register_command("M104", self.cmd_M104, desc=self.cmd_M104_help)
+            gcode.register_command("M109", self.cmd_M109, desc=self.cmd_M109_help)
         # NOTE: a mux command is registered and identified uniquely by the "cmd",
         #       the "key", and also the key's "value". This means that the 
         #       ACTIVATE_EXTRUDER command will run in different instances
@@ -486,6 +486,7 @@ class PrinterExtruder:
         # NOTE: borrowed from the cartesian kinematics for "homing.py".
         return [stepper_positions[rail.get_name()] for rail in self.rails]
     
+    cmd_M104_help = "Set extruder temperature without waiting"
     def cmd_M104(self, gcmd, wait=False):
         # Set Extruder Temperature
         temp = gcmd.get_float('S', 0.)
@@ -503,6 +504,7 @@ class PrinterExtruder:
             extruder = self.printer.lookup_object('toolhead').get_extruder()
         pheaters = self.printer.lookup_object('heaters')
         pheaters.set_temperature(extruder.get_heater(), temp, wait)
+    cmd_M109_help = "Set extruder temperature and wait"
     def cmd_M109(self, gcmd):
         # Set Extruder Temperature and Wait
         self.cmd_M104(gcmd, wait=True)

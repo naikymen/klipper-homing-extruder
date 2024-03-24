@@ -16,7 +16,7 @@ class QueryEndstops:
         gcode = self.printer.lookup_object('gcode')
         gcode.register_command("QUERY_ENDSTOPS", self.cmd_QUERY_ENDSTOPS,
                                desc=self.cmd_QUERY_ENDSTOPS_help)
-        gcode.register_command("M119", self.cmd_QUERY_ENDSTOPS)
+        gcode.register_command("M119", self.cmd_QUERY_ENDSTOPS, desc=self.cmd_M119_help)
     def register_endstop(self, mcu_endstop, name):
         self.endstops.append((mcu_endstop, name))
     def get_status(self, eventtime):
@@ -30,6 +30,7 @@ class QueryEndstops:
                                for mcu_endstop, name in self.endstops]
         web_request.send({name: ["open", "TRIGGERED"][not not t]
                           for name, t in self.last_state})
+    cmd_M119_help = "Alias for QUERY_ENDSTOPS."
     cmd_QUERY_ENDSTOPS_help = "Report on the status of each endstop"
     def cmd_QUERY_ENDSTOPS(self, gcmd):
         # Query the endstops

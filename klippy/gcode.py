@@ -361,12 +361,15 @@ class GCodeDispatch:
                              % (key_param, key))
         values[key_param](gcmd)
     # Low-level G-Code commands that are needed before the config file is loaded
+    cmd_M110_help = "Set Current Line Number"
     def cmd_M110(self, gcmd):
         # Set Current Line Number
         pass
+    cmd_M112_help = "Emergency Stop"
     def cmd_M112(self, gcmd):
         # Emergency Stop
         self.printer.invoke_shutdown("Shutdown due to M112 command")
+    cmd_M115_help = "Get Firmware Version"
     def cmd_M115(self, gcmd):
         # Get Firmware Version and Capabilities
         software_version = self.printer.get_start_args().get('software_version')

@@ -29,7 +29,7 @@ gcode_log = setup_logger('gcode_log', '/tmp/gcode.log')
 # supports XY, XZ & YZ planes with remaining axis as helical
 
 class ArcSupport:
-
+ 
     def __init__(self, config):
         """Support for gcode arc (G2/G3) commands.
         [gcode_arcs]
@@ -51,6 +51,7 @@ class ArcSupport:
         - G2 X10 Y10 I10 J0 F10000
         - G2 X10 Y10 A10 I10 J0 F10000
         """
+        
         self.printer = config.get_printer()
         self.mm_per_arc_segment = config.getfloat('resolution', 1., above=0.0)
 
@@ -89,16 +90,16 @@ class ArcSupport:
         # self.A_AXIS = self.axis_map.get("A", 4)  # NOTE: Not used below.
         self.E_AXIS = self.axis_map.get("E", None)  # self.min_axes
         
-        # Arc Move Clockwise.
-        self.gcode.register_command("G2", self.cmd_G2)
-        
-        # Arc Move Counter-clockwise.
-        self.gcode.register_command("G3", self.cmd_G3)
-        
-        # Arc Plane Select: G17 (XY plane), G18 (XZ plane), G19 (YZ plane).
-        self.gcode.register_command("G17", self.cmd_G17)
-        self.gcode.register_command("G18", self.cmd_G18)
-        self.gcode.register_command("G19", self.cmd_G19)
+        # Register g-code commands
+        self.handlers = [
+            'G2', 'G3', 'G17', 'G18', 'G19'
+        ]
+        # NOTE: this iterates over the commands above and finds the functions
+        #       and description strings by their names (as they appear in "handlers").
+        for cmd in self.handlers:
+            func = getattr(self, 'cmd_' + cmd)
+            desc = getattr(self, 'cmd_' + cmd + '_help', None)
+            self.gcode.register_command(cmd, func, when_not_ready=False, desc=desc)
 
         # This is a named tuple with elements: ('x', 'y', 'z', 'e', 'a', 'b', 'c')
         # Values default to None.
@@ -107,22 +108,27 @@ class ArcSupport:
         # backwards compatibility, prior implementation only supported XY
         self.plane = self.ARC_PLANE_X_Y
 
+    cmd_G2_help = "Clockwise arc move to a specified position."
     def cmd_G2(self, gcmd):
         """Arc Move Clockwise: G2 [X<pos>] [Y<pos>] [Z<pos>] [E<pos>] [F<speed>] I<value> J<value>|I<value> K<value>|J<value> K<value>"""
         self._cmd_inner(gcmd, True)
 
+    cmd_G3_help = "Counter-clockwise arc move to a specified position."
     def cmd_G3(self, gcmd):
         """Arc Move Counter-clockwise: G3 [X<pos>] [Y<pos>] [Z<pos>] [E<pos>] [F<speed>] I<value> J<value>|I<value> K<value>|J<value> K<value>"""
         self._cmd_inner(gcmd, False)
 
+    cmd_G17_help = "Select XY plane for circular interpolation"
     def cmd_G17(self, gcmd):
         """Arc Plane Select: G17 (XY plane)"""
         self.plane = self.ARC_PLANE_X_Y
 
+    cmd_G18_help = "Select XZ plane for circular interpolation"
     def cmd_G18(self, gcmd):
         """Arc Plane Select: G18 (XZ plane)"""
         self.plane = self.ARC_PLANE_X_Z
 
+    cmd_G19_help = "Select YZ plane for circular interpolation"
     def cmd_G19(self, gcmd):
         """Arc Plane Select: G19 (YZ plane)"""
         self.plane = self.ARC_PLANE_Y_Z

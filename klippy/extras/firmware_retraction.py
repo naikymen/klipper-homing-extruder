@@ -20,8 +20,8 @@ class FirmwareRetraction:
                                     desc=self.cmd_SET_RETRACTION_help)
         self.gcode.register_command('GET_RETRACTION', self.cmd_GET_RETRACTION,
                                     desc=self.cmd_GET_RETRACTION_help)
-        self.gcode.register_command('G10', self.cmd_G10)
-        self.gcode.register_command('G11', self.cmd_G11)
+        self.gcode.register_command('G10', self.cmd_G10, desc=self.cmd_G10_help)
+        self.gcode.register_command('G11', self.cmd_G11, desc=self.cmd_G11_help)
 
     def get_status(self, eventtime):
         return {
@@ -50,6 +50,7 @@ class FirmwareRetraction:
                           % (self.retract_length, self.retract_speed,
                              self.unretract_extra_length, self.unretract_speed))
 
+    cmd_G10_help = ("Firmware retraction")
     def cmd_G10(self, gcmd):
         if not self.is_retracted:
             self.gcode.run_script_from_command(
@@ -60,6 +61,7 @@ class FirmwareRetraction:
                 % (self.retract_length, self.retract_speed*60))
             self.is_retracted = True
 
+    cmd_G11_help = ("Firmware unretract")
     def cmd_G11(self, gcmd):
         if self.is_retracted:
             self.gcode.run_script_from_command(

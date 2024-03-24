@@ -18,12 +18,13 @@ class SafeZHoming:
         self.printer.load_object(config, 'homing')
         self.gcode = self.printer.lookup_object('gcode')
         self.prev_G28 = self.gcode.register_command("G28", None)
-        self.gcode.register_command("G28", self.cmd_G28)
+        self.gcode.register_command("G28", self.cmd_G28, desc=self.cmd_G28_help)
 
         if config.has_section("homing_override"):
             raise config.error("homing_override and safe_z_homing cannot"
                                +" be used simultaneously")
 
+    cmd_G28_help = "Performing Homing procedure with Safe Z Home"
     def cmd_G28(self, gcmd):
         toolhead = self.printer.lookup_object('toolhead')
 
