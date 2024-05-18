@@ -83,7 +83,7 @@ class GCodeMove:
         handlers = [
             'G1', 'G20', 'G21',
             'M82', 'M83', 'G90', 'G91', 'G92', 'M220', 'M221',
-            'SET_GCODE_OFFSET', 'SAVE_GCODE_STATE', 'RESTORE_GCODE_STATE',
+            'SET_GCODE_OFFSET', 'SAVE_GCODE_STATE', 'RESTORE_GCODE_STATE'
         ]
         # NOTE: this iterates over the commands above and finds the functions
         #       and description strings by their names (as they appear in "handlers").
@@ -92,11 +92,15 @@ class GCodeMove:
             desc = getattr(self, 'cmd_' + cmd + '_help', None)
             gcode.register_command(cmd, func, when_not_ready=False, desc=desc)
         
-        gcode.register_command('G0', self.cmd_G1)
-        gcode.register_command('M114', self.cmd_M114, True)
-        gcode.register_command('GET_POSITION', self.cmd_GET_POSITION, True,
-                               desc=self.cmd_GET_POSITION_help)
+        # Register G0 as an alias for G1.
+        # TODO: Re-implement G0 as a proper "fast/non-contact move".
+        gcode.register_command('G0', self.cmd_G1, when_not_ready=False, desc=self.cmd_G0_help)
         
+        # NOTE: These commands require `when_not_ready=True`.
+        gcode.register_command('M114', self.cmd_M114, when_not_ready=True)
+        gcode.register_command('GET_POSITION', self.cmd_GET_POSITION, when_not_ready=True,
+                               desc=self.cmd_GET_POSITION_help)
+
         self.Coord = gcode.Coord
         
         # G-Code coordinate manipulation
@@ -225,6 +229,8 @@ class GCodeMove:
             logging.info(f"gcode_move.reset_last_position: printer not ready self.last_position={self.last_position} not updated.")
     
     # G-Code movement commands
+    cmd_G1_help = "Linear move to a specified position with a controlled feedrate."
+    cmd_G0_help = "Command alias for G1."
     def cmd_G1(self, gcmd):
         
         # Move
@@ -276,25 +282,31 @@ class GCodeMove:
         self.move_with_transform(self.last_position, self.speed)
     
     # G-Code coordinate manipulation
+    cmd_G20_help = "Set units to inches."
     def cmd_G20(self, gcmd):
         # Set units to inches
         raise gcmd.error('Machine does not support G20 (inches) command')
+    cmd_G21_help = "Set units to millimeters."
     def cmd_G21(self, gcmd):
         # Set units to millimeters
         pass
+    cmd_M82_help = "Use absolute distances for extrusion."
     def cmd_M82(self, gcmd):
         # Use absolute distances for extrusion
         self.absolute_extrude = True
+    cmd_M83_help = "Use relative distances for extrusion."
     def cmd_M83(self, gcmd):
         # Use relative distances for extrusion
         self.absolute_extrude = False
+    cmd_G90_help = "Use absolute coordinates."
     def cmd_G90(self, gcmd):
         # Use absolute coordinates
         self.absolute_coord = True
+    cmd_G91_help = "Use relative coordinates."
     def cmd_G91(self, gcmd):
         # Use relative coordinates
         self.absolute_coord = False
-    
+    cmd_G92_help = "Set position of the toolhead."
     def cmd_G92(self, gcmd):
         # Set position
         ax_names = list(self.axis_map)  # e.g.: ["X", "Y", "Z", "A", "E"]
@@ -311,12 +323,14 @@ class GCodeMove:
         if all([v is None for v in offsets]):
             self.base_position = list(self.last_position)
     
+    cmd_M114_help = "Get current position."
     def cmd_M114(self, gcmd):
         # Get Current Position
         pos = self._get_gcode_position()
         msg = " ".join([k.upper() + ":" + "%.3f" % pos[v] for k, v in self.axis_map.items() ])
         gcmd.respond_raw(copy(msg))
     
+    cmd_M220_help = "Set speed factor override percentage."
     def cmd_M220(self, gcmd):
         # Set speed factor override percentage
         # NOTE: a value between "0" and "1/60".
@@ -329,6 +343,7 @@ class GCodeMove:
         self.speed = self._get_gcode_speed() * value
         self.speed_factor = value
     
+    cmd_M221_help = "Set extrude factor override percentage."
     def cmd_M221(self, gcmd):
         # Set extrude factor override percentage
         new_extrude_factor = gcmd.get_float('S', 100., above=0.) / 100.

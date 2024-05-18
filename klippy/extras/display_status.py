@@ -14,8 +14,8 @@ class DisplayStatus:
         self.progress = self.message = None
         # Register commands
         gcode = self.printer.lookup_object('gcode')
-        gcode.register_command('M73', self.cmd_M73)
-        gcode.register_command('M117', self.cmd_M117)
+        gcode.register_command('M73', self.cmd_M73, desc=self.cmd_M73_help)
+        gcode.register_command('M117', self.cmd_M117, desc=self.cmd_M117_help)
         gcode.register_command(
             'SET_DISPLAY_TEXT', self.cmd_SET_DISPLAY_TEXT,
             desc=self.cmd_SET_DISPLAY_TEXT_help)
@@ -32,6 +32,7 @@ class DisplayStatus:
             if sdcard is not None:
                 progress = sdcard.get_status(eventtime)['progress']
         return { 'progress': progress, 'message': self.message }
+    cmd_M73_help = "Set print progress"
     def cmd_M73(self, gcmd):
         progress = gcmd.get_float('P', None)
         if progress is not None:
@@ -39,6 +40,7 @@ class DisplayStatus:
             self.progress = min(1., max(0., progress))
             curtime = self.printer.get_reactor().monotonic()
             self.expire_progress = curtime + M73_TIMEOUT
+    cmd_M117_help = "Set LCD message"
     def cmd_M117(self, gcmd):
         msg = gcmd.get_raw_command_parameters() or None
         self.message = msg

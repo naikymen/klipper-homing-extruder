@@ -16,7 +16,8 @@ class HomingOverride:
         self.printer.load_object(config, 'homing')
         self.gcode = self.printer.lookup_object('gcode')
         self.prev_G28 = self.gcode.register_command("G28", None)
-        self.gcode.register_command("G28", self.cmd_G28)
+        self.gcode.register_command("G28", self.cmd_G28, desc=self.cmd_G28_help)
+    cmd_G28_help = "Run homing procedure with override"
     def cmd_G28(self, gcmd):
         if self.in_script:
             # Was called recursively - invoke the real G28 command

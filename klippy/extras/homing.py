@@ -579,7 +579,7 @@ class PrinterHoming:
         
         # Register g-code commands
         gcode = self.printer.lookup_object('gcode')
-        gcode.register_command('G28', self.cmd_G28)
+        gcode.register_command('G28', self.cmd_G28, desc=self.cmd_G28_help)
     
     def manual_home(self, toolhead, endstops, pos, speed,
                     triggered, check_triggered):
@@ -644,6 +644,7 @@ class PrinterHoming:
         # NOTE: "epos" is "trigpos" from the "homing_move" method.
         return epos
 
+    cmd_G28_help = "Run homing procedure"
     def cmd_G28(self, gcmd):
         logging.info(f"PrinterHoming.cmd_G28: homing with command={gcmd.get_commandline()}")
         

@@ -473,7 +473,7 @@ class ToolHead:
         
         logging.info(f"ToolHead: starting setup with axes={self.axis_names}, pos_length={self.pos_length}, and accel_limited_axes={self.accel_limited_axes}")
         
-        self.printer: Printer = config.get_printer()
+        self.printer = config.get_printer()
         self.reactor = self.printer.get_reactor()
         self.all_mcus = [
             m for n, m in self.printer.lookup_objects(module='mcu')]
@@ -555,16 +555,22 @@ class ToolHead:
         # Create extruder kinematics class
         # NOTE: setup a dummy extruder at first, replaced later if configured.
         self.extruder = kinematics.extruder.DummyExtruder(self.printer)
+
+        # Register g-code commands
+        handlers = [
+            'G4', 'M400', 'M204', 'SET_VELOCITY_LIMIT'
+        ]
+
+        # NOTE: this iterates over the commands above and finds the functions
+        #       and description strings by their names (as they appear in "handlers").
+        for cmd in handlers:
+            func = getattr(self, 'cmd_' + cmd)
+            desc = getattr(self, 'cmd_' + cmd + '_help', None)
+            gcode.register_command(cmd, func, when_not_ready=False, desc=desc)
         
-        # Register commands
-        gcode.register_command('G4', self.cmd_G4)
-        gcode.register_command('M400', self.cmd_M400)
-        gcode.register_command('SET_VELOCITY_LIMIT',
-                               self.cmd_SET_VELOCITY_LIMIT,
-                               desc=self.cmd_SET_VELOCITY_LIMIT_help)
-        gcode.register_command('M204', self.cmd_M204)
         gcode.register_command('GET_STATUS_MSG', self.get_status_msg, 
                                desc=self.cmd_GET_STATUS_MSG_help)
+        
         self.printer.register_event_handler("klippy:shutdown",
                                             self._handle_shutdown)
         # Load some default modules
@@ -1575,10 +1581,12 @@ class ToolHead:
         self.junction_deviation = scv2 * (math.sqrt(2.) - 1.) / self.max_accel
         self.max_accel_to_decel = min(self.requested_accel_to_decel,
                                       self.max_accel)
+    cmd_G4_help = "Dwell in milliseconds"
     def cmd_G4(self, gcmd):
         # Dwell
         delay = gcmd.get_float('P', 0., minval=0.) / 1000.
         self.dwell(delay)
+    cmd_M400_help = "Wait for current moves to finish"
     def cmd_M400(self, gcmd):
         # Wait for current moves to finish
         self.wait_moves()
@@ -1612,6 +1620,7 @@ class ToolHead:
             square_corner_velocity is None and
             requested_accel_to_decel is None):
             gcmd.respond_info(msg, log=False)
+    cmd_M204_help = "Set default acceleration."
     def cmd_M204(self, gcmd):
         # Use S for accel
         accel = gcmd.get_float('S', None, above=0.)

@@ -365,7 +365,7 @@ class PrinterHeaters:
         gcode = self.printer.lookup_object('gcode')
         gcode.register_command("TURN_OFF_HEATERS", self.cmd_TURN_OFF_HEATERS,
                                desc=self.cmd_TURN_OFF_HEATERS_help)
-        gcode.register_command("M105", self.cmd_M105, when_not_ready=True)
+        gcode.register_command("M105", self.cmd_M105, when_not_ready=True, desc=self.cmd_M105_help)
         gcode.register_command("TEMPERATURE_WAIT", self.cmd_TEMPERATURE_WAIT,
                                desc=self.cmd_TEMPERATURE_WAIT_help)
     def load_config(self, config):
@@ -443,6 +443,7 @@ class PrinterHeaters:
         if not out:
             return "T:0"
         return " ".join(out)
+    cmd_M105_help = "Get Extruder Temperature"
     def cmd_M105(self, gcmd):
         # Get Extruder Temperature
         reactor = self.printer.get_reactor()
