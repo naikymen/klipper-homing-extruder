@@ -25,7 +25,7 @@ class HostResponder:
         gcode.register_command('M118', self.cmd_M118, True, desc=self.cmd_M118_help)
         gcode.register_command('RESPOND', self.cmd_RESPOND, True,
                                desc=self.cmd_RESPOND_help)
-    cmd_M118_help = "Echo the message prepended with a prefix"
+    cmd_M118_help = "Echo the message prepended with the default prefix"
     def cmd_M118(self, gcmd):
         msg = gcmd.get_raw_command_parameters()
         gcmd.respond_raw("%s %s" % (self.default_prefix, msg))

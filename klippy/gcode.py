@@ -409,6 +409,7 @@ class GCodeDispatch:
         cmdhelp = []
         if not self.is_printer_ready:
             cmdhelp.append("Printer is not ready - not all commands available.")
+        # NOTE: Append 'extended' GCODE commands with help string.
         cmdhelp.append("Available extended commands:")
         for cmd in sorted(self.gcode_handlers):
             if cmd in self.gcode_help:
@@ -417,11 +418,11 @@ class GCodeDispatch:
         for cmd in sorted(self.gcode_handlers):
             if cmd not in self.gcode_help:
                 cmdhelp.append("%-10s: %s" % (cmd, "no description."))
-        # NOTE: Also append "basic" GCODE commands (i.e. G1, G28, etc.).
-        # NOTE: Commented out because it seems that base commands are also in ready commands.
-        # cmdhelp.append("\nAvailable basic commands:")
-        # for cmd in sorted(self.base_gcode_handlers):
-        #     cmdhelp.append("%-10s: %s" % (cmd, self.gcode_help.get(cmd, "no description.")))
+        # Also append "basic" GCODE commands (i.e. G1, G28, etc.).
+        # TODO: Consider removing. It seems that base commands are also in ready commands.
+        cmdhelp.append("\nAvailable basic commands:")
+        for cmd in sorted(self.base_gcode_handlers):
+            cmdhelp.append("%-10s: %s" % (cmd, self.gcode_help.get(cmd, "no description.")))
         gcmd.respond_info("\n".join(cmdhelp), log=False)
 
 # Support reading gcode from a pseudo-tty interface

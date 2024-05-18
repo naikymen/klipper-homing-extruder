@@ -82,9 +82,8 @@ class GCodeMove:
         gcode: GCodeDispatch = printer.lookup_object('gcode')
         handlers = [
             'G1', 'G20', 'G21',
-            'M82', 'M83', 'G90', 'G91', 'G92', 'M220', 'M221', 'M114',
-            'SET_GCODE_OFFSET', 'SAVE_GCODE_STATE', 'RESTORE_GCODE_STATE',
-            'GET_POSITION'
+            'M82', 'M83', 'G90', 'G91', 'G92', 'M220', 'M221',
+            'SET_GCODE_OFFSET', 'SAVE_GCODE_STATE', 'RESTORE_GCODE_STATE'
         ]
         # NOTE: this iterates over the commands above and finds the functions
         #       and description strings by their names (as they appear in "handlers").
@@ -93,8 +92,15 @@ class GCodeMove:
             desc = getattr(self, 'cmd_' + cmd + '_help', None)
             gcode.register_command(cmd, func, when_not_ready=False, desc=desc)
         
-        gcode.register_command('G0', self.cmd_G1, desc=self.cmd_G1_help)
- 
+        # Register G0 as an alias for G1.
+        # TODO: Re-implement G0 as a proper "fast/non-contact move".
+        gcode.register_command('G0', self.cmd_G1, when_not_ready=False, desc=self.cmd_G0_help)
+        
+        # NOTE: These commands require `when_not_ready=True`.
+        gcode.register_command('M114', self.cmd_M114, when_not_ready=True)
+        gcode.register_command('GET_POSITION', self.cmd_GET_POSITION, when_not_ready=True,
+                               desc=self.cmd_GET_POSITION_help)
+
         self.Coord = gcode.Coord
         
         # G-Code coordinate manipulation
@@ -224,6 +230,7 @@ class GCodeMove:
     
     # G-Code movement commands
     cmd_G1_help = "Linear move to a specified position with a controlled feedrate."
+    cmd_G0_help = "Command alias for G1."
     def cmd_G1(self, gcmd):
         
         # Move

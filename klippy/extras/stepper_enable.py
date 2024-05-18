@@ -80,7 +80,7 @@ class PrinterStepperEnable:
         # Register M18/M84 commands
         gcode = self.printer.lookup_object('gcode')
         gcode.register_command("M18", self.cmd_M18, desc=self.cmd_M18_help)
-        gcode.register_command("M84", self.cmd_M18, desc=self.cmd_M18_help)
+        gcode.register_command("M84", self.cmd_M18, desc=self.cmd_M84_help)
         gcode.register_command("SET_STEPPER_ENABLE",
                                self.cmd_SET_STEPPER_ENABLE,
                                desc=self.cmd_SET_STEPPER_ENABLE_help)
@@ -115,6 +115,7 @@ class PrinterStepperEnable:
     def _handle_request_restart(self, print_time):
         self.motor_off()
     cmd_M18_help = "Turn off all stepper motors"
+    cmd_M84_help = "Turn off all stepper motors (alias for M18)"
     def cmd_M18(self, gcmd):
         # Turn off motors
         self.motor_off()
