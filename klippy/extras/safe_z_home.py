@@ -27,6 +27,7 @@ class SafeZHoming:
     cmd_G28_help = "Performing Homing procedure with Safe Z Home"
     def cmd_G28(self, gcmd):
         toolhead = self.printer.lookup_object('toolhead')
+        z_axis_idx: int = toolhead.axis_map["Z"]
 
         # Perform Z Hop if necessary
         if self.z_hop != 0.0:
@@ -37,38 +38,39 @@ class SafeZHoming:
 
             if 'z' not in kin_status['homed_axes']:
                 # Always perform the z_hop if the Z axis is not homed
-                pos[2] = 0
-                toolhead.set_position(pos, homing_axes=[2])
+                pos[z_axis_idx] = 0
+                toolhead.set_position(pos, homing_axes=[z_axis_idx])
                 toolhead.manual_move([None, None, self.z_hop],
                                      self.z_hop_speed)
                 if hasattr(toolhead.get_kinematics(), "note_z_not_homed"):
                     toolhead.get_kinematics().note_z_not_homed()
-            elif pos[2] < self.z_hop:
+            elif pos[z_axis_idx] < self.z_hop:
                 # If the Z axis is homed, and below z_hop, lift it to z_hop
                 toolhead.manual_move([None, None, self.z_hop],
                                      self.z_hop_speed)
 
         # Determine which axes we need to home
-        need_x, need_y, need_z = [gcmd.get(axis, None) is not None
-                                  for axis in "XYZ"]
-        if not need_x and not need_y and not need_z:
-            need_x = need_y = need_z = True
+        need_axes = [gcmd.get(axis, None) is not None for axis in toolhead.axis_names]
+        # If the list is empty, or every item is None, home everything.
+        home_all = not any(need_axes)
 
         # Home XY axes if necessary
         new_params = {}
-        if need_x:
-            new_params['X'] = '0'
-        if need_y:
-            new_params['Y'] = '0'
+        for a in need_axes:
+            if a is None or a == 'Z':
+                continue
+            else:
+                new_params[a] = '0'
         if new_params:
             g28_gcmd = self.gcode.create_gcode_command("G28", "G28", new_params)
             self.prev_G28(g28_gcmd)
 
         # Home Z axis if necessary
-        if need_z:
+        if ('Z' in need_axes) or home_all:
             # Throw an error if X or Y are not homed
             curtime = self.printer.get_reactor().monotonic()
-            kin_status = toolhead.get_kinematics().get_status(curtime)
+            # TODO: Adapt this to correctly identify the required kinematics.
+            kin_status = toolhead.get_kinematics(axes="XYZ").get_status(curtime)
             if ('x' not in kin_status['homed_axes'] or
                 'y' not in kin_status['homed_axes']):
                 raise gcmd.error("Must home X and Y axes first")
@@ -81,12 +83,13 @@ class SafeZHoming:
             # Perform Z Hop again for pressure-based probes
             if self.z_hop:
                 pos = toolhead.get_position()
-                if pos[2] < self.z_hop:
+                if pos[z_axis_idx] < self.z_hop:
                     toolhead.manual_move([None, None, self.z_hop],
                                          self.z_hop_speed)
             # Move XY back to previous positions
             if self.move_to_previous:
-                toolhead.manual_move(prevpos[:2], self.speed)
+                xy_idxs = [toolhead.axis_map[a] for a in "XY"]
+                toolhead.manual_move(prevpos[xy_idxs], self.speed)
 
 def load_config(config):
     return SafeZHoming(config)
