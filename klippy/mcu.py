@@ -230,28 +230,17 @@ class MCU_trsync:
 TRSYNC_TIMEOUT = 0.025
 TRSYNC_SINGLE_MCU_TIMEOUT = 0.250
 
-class MCU_endstop:
-    RETRY_QUERY = 1.000
-    def __init__(self, mcu, pin_params):
+class TriggerDispatch:
+    def __init__(self, mcu):
         self._mcu = mcu
-        self._pin = pin_params['pin']
-        self._pullup = pin_params['pullup']
-        
-        # NOTE: either 0 (default) or 1, if a "!" was found
-        #       in the configuration file. See the "PrinterPins"
-        #       class at "pins.py".
-        self._invert = pin_params['invert']
-
-        self._oid = self._mcu.create_oid()
-        self._home_cmd = self._query_cmd = None
-        self._mcu.register_config_callback(self._build_config)
         self._trigger_completion = None
-        self._rest_ticks = 0
         ffi_main, ffi_lib = chelper.get_ffi()
         self._trdispatch = ffi_main.gc(ffi_lib.trdispatch_alloc(), ffi_lib.free)
         self._trsyncs = [MCU_trsync(mcu, self._trdispatch)]
-    def get_mcu(self):
-        return self._mcu
+    def get_oid(self):
+        return self._trsyncs[0].get_oid()
+    def get_command_queue(self):
+        return self._trsyncs[0].get_command_queue()
     def add_stepper(self, stepper):
         trsyncs = {trsync.get_mcu(): trsync for trsync in self._trsyncs}
         trsync = trsyncs.get(stepper.get_mcu())
@@ -270,6 +259,55 @@ class MCU_endstop:
                                      " multi-mcu shared axis")
     def get_steppers(self):
         return [s for trsync in self._trsyncs for s in trsync.get_steppers()]
+    def start(self, print_time):
+        reactor = self._mcu.get_printer().get_reactor()
+        self._trigger_completion = reactor.completion()
+        expire_timeout = TRSYNC_TIMEOUT
+        if len(self._trsyncs) == 1:
+            expire_timeout = TRSYNC_SINGLE_MCU_TIMEOUT
+        for i, trsync in enumerate(self._trsyncs):
+            report_offset = float(i) / len(self._trsyncs)
+            # Calls the "start" method from "MCU_trsync"
+            trsync.start(print_time, report_offset,
+                         self._trigger_completion, expire_timeout)
+        etrsync = self._trsyncs[0]
+        ffi_main, ffi_lib = chelper.get_ffi()
+        ffi_lib.trdispatch_start(self._trdispatch, etrsync.REASON_HOST_REQUEST)
+        return self._trigger_completion
+    def wait_end(self, end_time):
+        etrsync = self._trsyncs[0]
+        etrsync.set_home_end_time(end_time)
+        if self._mcu.is_fileoutput():
+            self._trigger_completion.complete(True)
+        self._trigger_completion.wait()
+    def stop(self):
+        ffi_main, ffi_lib = chelper.get_ffi()
+        ffi_lib.trdispatch_stop(self._trdispatch)
+        res = [trsync.stop() for trsync in self._trsyncs]
+        if any([r == MCU_trsync.REASON_COMMS_TIMEOUT for r in res]):
+            return MCU_trsync.REASON_COMMS_TIMEOUT
+        return res[0]
+
+class MCU_endstop:
+    def __init__(self, mcu, pin_params):
+        self._mcu = mcu
+        self._pin = pin_params['pin']
+        self._pullup = pin_params['pullup']
+        # NOTE: Either 0 (default) or 1, if a "!" was found
+        #       in the configuration file. See the "PrinterPins"
+        #       class at "pins.py".
+        self._invert = pin_params['invert']
+        self._oid = self._mcu.create_oid()
+        self._home_cmd = self._query_cmd = None
+        self._mcu.register_config_callback(self._build_config)
+        self._rest_ticks = 0
+        self._dispatch = TriggerDispatch(mcu)
+    def get_mcu(self):
+        return self._mcu
+    def add_stepper(self, stepper):
+        self._dispatch.add_stepper(stepper)
+    def get_steppers(self):
+        return self._dispatch.get_steppers()
     def _build_config(self):
         # Setup config
         self._mcu.add_config_cmd("config_endstop oid=%d pin=%s pull_up=%d"
@@ -279,7 +317,7 @@ class MCU_endstop:
             " rest_ticks=0 pin_value=0 trsync_oid=0 trigger_reason=0"
             % (self._oid,), on_restart=True)
         # Lookup commands
-        cmd_queue = self._trsyncs[0].get_command_queue()
+        cmd_queue = self._dispatch.get_command_queue()
         self._home_cmd = self._mcu.lookup_command(
             "endstop_home oid=%c clock=%u sample_ticks=%u sample_count=%c"
             " rest_ticks=%u pin_value=%c trsync_oid=%c trigger_reason=%c",
@@ -294,19 +332,7 @@ class MCU_endstop:
         clock = self._mcu.print_time_to_clock(print_time)
         rest_ticks = self._mcu.print_time_to_clock(print_time+rest_time) - clock
         self._rest_ticks = rest_ticks
-        reactor = self._mcu.get_printer().get_reactor()
-        self._trigger_completion = reactor.completion()
-        expire_timeout = TRSYNC_TIMEOUT
-        if len(self._trsyncs) == 1:
-            expire_timeout = TRSYNC_SINGLE_MCU_TIMEOUT
-        for i, trsync in enumerate(self._trsyncs):
-            report_offset = float(i) / len(self._trsyncs)
-            # Calls the "start" method from "MCU_trsync"
-            trsync.start(print_time, report_offset,
-                         self._trigger_completion, expire_timeout)
-        etrsync = self._trsyncs[0]
-        ffi_main, ffi_lib = chelper.get_ffi()
-        ffi_lib.trdispatch_start(self._trdispatch, etrsync.REASON_HOST_REQUEST)
+        trigger_completion = self._dispatch.start(print_time)
         # NOTE: Here the pin logic is finally used to make the endstop_home 
         #       low level command. It uses "triggered ^ self._invert" which has
         #       the following logic table:
@@ -317,28 +343,17 @@ class MCU_endstop:
         self._home_cmd.send(
             [self._oid, clock, self._mcu.seconds_to_clock(sample_time),
              sample_count, rest_ticks, triggered ^ self._invert,
-             etrsync.get_oid(), etrsync.REASON_ENDSTOP_HIT], reqclock=clock)
-        return self._trigger_completion
-    
+             self._dispatch.get_oid(), MCU_trsync.REASON_ENDSTOP_HIT],
+            reqclock=clock)
+        return trigger_completion
     def home_wait(self, home_end_time):
         # NOTE: called by "homing_move" (at homing.py)
-        etrsync = self._trsyncs[0]
-        etrsync.set_home_end_time(home_end_time)
-        if self._mcu.is_fileoutput():
-            self._trigger_completion.complete(True)
-        # TODO: is this the "sleep" function?
-        self._trigger_completion.wait()
+        self._dispatch.wait_end(home_end_time)
         self._home_cmd.send([self._oid, 0, 0, 0, 0, 0, 0, 0])
-        ffi_main, ffi_lib = chelper.get_ffi()
-        # NOTE: "Cleanup after a test completes" (trdispath.c)
-        ffi_lib.trdispatch_stop(self._trdispatch)
-        # NOTE: "stop" is a method from MCU_trsync. It does some stuff
-        #       and calls the "note_homing_end" method of the steppers,
-        #       which in turn calls "ffi_lib.stepcompress_reset".
-        res = [trsync.stop() for trsync in self._trsyncs]
-        if any([r == etrsync.REASON_COMMS_TIMEOUT for r in res]):
+        res = self._dispatch.stop()
+        if res == MCU_trsync.REASON_COMMS_TIMEOUT:
             return -1.
-        if res[0] != etrsync.REASON_ENDSTOP_HIT:
+        if res != MCU_trsync.REASON_ENDSTOP_HIT:
             return 0.
         if self._mcu.is_fileoutput():
             return home_end_time
@@ -614,6 +629,7 @@ class MCU:
         printer.register_event_handler("klippy:connect", self._connect)
         printer.register_event_handler("klippy:shutdown", self._shutdown)
         printer.register_event_handler("klippy:disconnect", self._disconnect)
+        printer.register_event_handler("klippy:ready", self._ready)
     # Serial callbacks
     def _handle_mcu_stats(self, params):
         count = params['count']
@@ -680,7 +696,6 @@ class MCU:
         self._config_cmds.insert(0, "allocate_oids count=%d"
                                  % (self._oid_count,))
         # Resolve pin names
-        mcu_type = self._serial.get_msgparser().get_constant('MCU')
         ppins = self._printer.lookup_object('pins')
         pin_resolver = ppins.get_pin_resolver(self._name)
         for cmdlist in (self._config_cmds, self._restart_cmds, self._init_cmds):
@@ -825,6 +840,21 @@ class MCU:
         self.register_response(self._handle_shutdown, 'shutdown')
         self.register_response(self._handle_shutdown, 'is_shutdown')
         self.register_response(self._handle_mcu_stats, 'stats')
+    def _ready(self):
+        if self.is_fileoutput():
+            return
+        # Check that reported mcu frequency is in range
+        mcu_freq = self._mcu_freq
+        systime = self._reactor.monotonic()
+        get_clock = self._clocksync.get_clock
+        calc_freq = get_clock(systime + 1) - get_clock(systime)
+        mcu_freq_mhz = int(mcu_freq / 1000000. + 0.5)
+        calc_freq_mhz = int(calc_freq / 1000000. + 0.5)
+        if mcu_freq_mhz != calc_freq_mhz:
+            pconfig = self._printer.lookup_object('configfile')
+            msg = ("MCU '%s' configured for %dMhz but running at %dMhz!"
+                    % (self._name, mcu_freq_mhz, calc_freq_mhz))
+            pconfig.runtime_warning(msg)
     # Config creation helpers
     def setup_pin(self, pin_type, pin_params):
         pcs = {'endstop': MCU_endstop,

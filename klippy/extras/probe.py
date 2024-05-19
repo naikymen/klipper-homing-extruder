@@ -139,8 +139,7 @@ class PrinterProbe:
         # TODO: consider removing this check.
         if 'z' not in toolhead.get_status(curtime)['homed_axes']:
             raise self.printer.command_error("Must home before probe")
-        
-        phoming: PrinterHoming = self.printer.lookup_object('homing')
+
         pos = toolhead.get_position()
 
         # NOTE: "self.z_position" is equal to the "min_position"
@@ -152,18 +151,17 @@ class PrinterProbe:
         pos[z_idx] = self.z_position
         
         try:
-            # NOTE: This probe method uses "phoming.probing_move",
-            #       passing it "mcu_probe" which is an instance of 
-            #       "ProbeEndstopWrapper", a wrapper for the probes'
-            #       MCU_endstop object.
+            # NOTE: "mcu_probe" is an instance of "ProbeEndstopWrapper",
+            #       a wrapper for the probes' MCU_endstop object.
+            #       Previous versions used "phoming.probing_move"
             # NOTE: This is in contrast to "phoming.manual_home",
             #       which additionally requires a toolhead object.
             #       It turns out that, if not provided, HomingMove
             #       will get the main toolhead by lookup and use it.
-            # NOTE: the method is passed "pos", which is "min_position"
+            # NOTE: The method is passed "pos", which is "min_position"
             #       parameter from the "z_stepper" section, and the
-            #       current XYE toolhead coordinates (see notes above). 
-            epos = phoming.probing_move(self.mcu_probe, pos, speed)
+            #       current XYE toolhead coordinates (see notes above).
+            epos = self.mcu_probe.probing_move(pos, speed)
 
         except self.printer.command_error as e:
             # NOTE: the "fail" logic of the G38 gcode could be
@@ -410,20 +408,20 @@ class ProbeEndstopWrapper:
         for stepper in kin.get_steppers():
             if stepper.is_active_axis('z'):
                 self.add_stepper(stepper)
-    def raise_probe(self):
+    def _raise_probe(self):
         toolhead = self.printer.lookup_object('toolhead')
         start_pos = toolhead.get_position()
         self.deactivate_gcode.run_gcode_from_command()
         if toolhead.get_position()[:-1] != start_pos[:-1]:
             raise self.printer.command_error(
-                "Toolhead moved during probe activate_gcode script")
-    def lower_probe(self):
+                "Toolhead moved during probe deactivate_gcode script")
+    def _lower_probe(self):
         toolhead = self.printer.lookup_object('toolhead')
         start_pos = toolhead.get_position()
         self.activate_gcode.run_gcode_from_command()
         if toolhead.get_position()[:-1] != start_pos[:-1]:
             raise self.printer.command_error(
-                "Toolhead moved during probe deactivate_gcode script")
+                "Toolhead moved during probe activate_gcode script")
     def multi_probe_begin(self):
         if self.stow_on_each_sample:
             return
@@ -431,16 +429,19 @@ class ProbeEndstopWrapper:
     def multi_probe_end(self):
         if self.stow_on_each_sample:
             return
-        self.raise_probe()
+        self._raise_probe()
         self.multi = 'OFF'
+    def probing_move(self, pos, speed):
+        phoming = self.printer.lookup_object('homing')
+        return phoming.probing_move(self, pos, speed)
     def probe_prepare(self, hmove):
         if self.multi == 'OFF' or self.multi == 'FIRST':
-            self.lower_probe()
+            self._lower_probe()
             if self.multi == 'FIRST':
                 self.multi = 'ON'
     def probe_finish(self, hmove):
         if self.multi == 'OFF':
-            self.raise_probe()
+            self._raise_probe()
     def get_position_endstop(self):
         return self.position_endstop
 

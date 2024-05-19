@@ -592,7 +592,7 @@ def TMCtstepHelper(step_dist, mres, tmc_freq, velocity):
         return 0xfffff
 
 # Helper to configure stealthChop-spreadCycle transition velocity
-def TMCStealthchopHelper(config, mcu_tmc, tmc_freq):
+def TMCStealthchopHelper(config, mcu_tmc):
     fields = mcu_tmc.get_fields()
     en_pwm_mode = False
     velocity = config.getfloat('stealthchop_threshold', None, minval=0.)
@@ -606,7 +606,8 @@ def TMCStealthchopHelper(config, mcu_tmc, tmc_freq):
         rotation_dist, steps_per_rotation = stepper.parse_step_distance(sconfig)
         step_dist = rotation_dist / steps_per_rotation
         mres = fields.get_field("mres")
-        tpwmthrs = TMCtstepHelper(step_dist, mres, tmc_freq, velocity)
+        tpwmthrs = TMCtstepHelper(step_dist, mres, mcu_tmc.get_tmc_frequency(),
+                                  velocity)
     fields.set_field("tpwmthrs", tpwmthrs)
 
     reg = fields.lookup_register("en_pwm_mode", None)
@@ -615,3 +616,36 @@ def TMCStealthchopHelper(config, mcu_tmc, tmc_freq):
     else:
         # TMC2208 uses en_spreadCycle
         fields.set_field("en_spreadcycle", not en_pwm_mode)
+
+# Helper to configure StallGuard and CoolStep minimum velocity
+def TMCVcoolthrsHelper(config, mcu_tmc):
+    fields = mcu_tmc.get_fields()
+    velocity = config.getfloat('coolstep_threshold', None, minval=0.)
+    tcoolthrs = 0
+
+    if velocity is not None:
+        stepper_name = " ".join(config.get_name().split()[1:])
+        sconfig = config.getsection(stepper_name)
+        rotation_dist, steps_per_rotation = stepper.parse_step_distance(sconfig)
+        step_dist = rotation_dist / steps_per_rotation
+        mres = fields.get_field("mres")
+        tcoolthrs = TMCtstepHelper(step_dist, mres,
+                                   mcu_tmc.get_tmc_frequency(), velocity)
+    fields.set_field("tcoolthrs", tcoolthrs)
+
+# Helper to configure StallGuard and CoolStep maximum velocity and
+# SpreadCycle-FullStepping (High velocity) mode threshold.
+def TMCVhighHelper(config, mcu_tmc):
+    fields = mcu_tmc.get_fields()
+    velocity = config.getfloat('high_velocity_threshold', None, minval=0.)
+    thigh = 0
+
+    if velocity is not None:
+        stepper_name = " ".join(config.get_name().split()[1:])
+        sconfig = config.getsection(stepper_name)
+        rotation_dist, steps_per_rotation = stepper.parse_step_distance(sconfig)
+        step_dist = rotation_dist / steps_per_rotation
+        mres = fields.get_field("mres")
+        thigh = TMCtstepHelper(step_dist, mres,
+                                   mcu_tmc.get_tmc_frequency(), velocity)
+    fields.set_field("thigh", thigh)
