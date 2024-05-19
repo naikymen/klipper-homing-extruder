@@ -206,6 +206,12 @@ class CartKinematicsABC(CartKinematics):
         return [s for rail in self.rails for s in rail.get_steppers()]
     
     def calc_position(self, stepper_positions):
+        # Get the proper set of rails if IDEX is enabled.
+        rails = self.rails
+        if self.dc_module:
+            primary_rail = self.dc_module.get_primary_rail().get_rail()
+            rails = (rails[:self.dc_module.axis] +
+                     [primary_rail] + rails[self.dc_module.axis+1:])
         # Dummy default position.
         pos = [0.0 for i in range(3)]
         # Replace defaults.
@@ -213,7 +219,7 @@ class CartKinematicsABC(CartKinematics):
             # e.g.: Get rail "stepper_a", with axis name "A", and axis index "3".
             # We know that the "axis_config" and "rails" lists match in order
             # because this is how they were defined during init in this class.
-            rail = self.rails[i]
+            rail = rails[i]
             stepper_position = stepper_positions[rail.get_name()]
             # Axis may be from XYZ, ABC, or higher-indexed triplets.
             # Get the remainder of the current axis to convert it to an
@@ -223,37 +229,57 @@ class CartKinematicsABC(CartKinematics):
 
         # return [stepper_positions[rail.get_name()] for rail in self.rails]
         return pos.copy()
-    
+
     def update_limits(self, i, range):
         l, h = self.limits[i]
         # Only update limits if this axis was already homed,
         # otherwise leave in un-homed state.
         if l <= h:
             self.limits[i] = range
-    def override_rail(self, i, rail):
-        self.rails[i] = rail
-    
+
     def set_position(self, newpos, homing_axes):
+        """Set the position of the kinematics
+
+        Args:
+            newpos (list): 3-element list with the new positions for the kinematics.
+            homing_axes (tuple): 3-element tuple indicating the axes that should have their limits defined (i.e. set as homed).
+        """
         logging.info(f"CartKinematicsABC.set_position: setting kinematic position of {len(self.rails)} rails " +
                      f"with newpos={newpos} and homing_axes={homing_axes}")
         for i, rail in enumerate(self.rails):
             logging.info(f"CartKinematicsABC: setting newpos={newpos} on stepper: {rail.get_name()}")
+            # NOTE: The following calls PrinterRail.set_position,
+            #       which calls set_position on each of the MCU_stepper objects
+            #       in each PrinterRail.
+            # NOTE: This means that 4 calls will be made in total for a machine
+            #       with X, Y, Y1, and Z steppers.
+            # NOTE: This eventually calls "itersolve_set_position".
             rail.set_position(newpos)
-            if i in homing_axes:
-                logging.info(f"CartKinematicsABC: setting limits={rail.get_range()} on stepper: {rail.get_name()}")
-                # NOTE: Here each limit becomes associated to a certain "rail" (i.e. an axis).
-                #       If the rails were set up as "XYZ" in that order (as per "self.axis_names"),
-                #       the limits will now correspond to them in that same order.
-                # NOTE: This is relevant fot "get_status".
-                self.limits[i] = rail.get_range()
-    
+
+        # NOTE: Set limits if the axis is (being) homed.
+        for axis in homing_axes:
+            # Get the proper rail for the "dual-carriage" case.
+            if self.dc_module and axis == self.dc_module.axis:
+                rail = self.dc_module.get_primary_rail().get_rail()
+            else:
+                rail = self.rails[axis]
+            logging.info(f"CartKinematicsABC: setting limits={rail.get_range()} on stepper: {rail.get_name()}")
+            # NOTE: Here each limit becomes associated to a certain "rail" (i.e. an axis).
+            #       If the rails were set up as "XYZ" in that order (as per "self.axis_names"),
+            #       the limits will now correspond to them in that same order.
+            # NOTE: This is relevant fot "get_status".
+            # NOTE: This will put the axis to a "homed" state, which means that
+            #       the unhomed part of the kinematic move check will pass from
+            #       now on.
+            self.limits[axis] = rail.get_range()
+
     def note_z_not_homed(self):
         # Helper for Safe Z Home
         # self.limits[2] = (1.0, -1.0)
         # TODO: reconsider ignoring the call, it can be produced by "safe_z_home".
         logging.info(f"CartKinematicsABC WARNING: call to note_z_not_homed ignored.")
         pass
-    
+
     def home_axis(self, homing_state: Homing, axis, rail):
         # Determine movement
         position_min, position_max = rail.get_range()

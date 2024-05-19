@@ -81,19 +81,21 @@ class CartKinematics:
             rails = (rails[:self.dc_module.axis] +
                      [primary_rail] + rails[self.dc_module.axis+1:])
         return [stepper_positions[rail.get_name()] for rail in rails]
+
     def update_limits(self, i, range):
         l, h = self.limits[i]
         # Only update limits if this axis was already homed,
         # otherwise leave in un-homed state.
         if l <= h:
             self.limits[i] = range
+
     def set_position(self, newpos, homing_axes):
         logging.info(f"CartKinematics.set_position: setting kinematic position of {len(self.rails)} rails " +
                      f"with newpos={newpos} and homing_axes={homing_axes}")
         for i, rail in enumerate(self.rails):
             logging.info(f"CartKinematics: setting newpos={newpos} on stepper: {rail.get_name()}")
-            # NOTE: The following calls PrinterRail.set_position, 
-            #       which calls set_position on each of the MCU_stepper objects 
+            # NOTE: The following calls PrinterRail.set_position,
+            #       which calls set_position on each of the MCU_stepper objects
             #       in each PrinterRail.
             # NOTE: This means that 4 calls will be made in total for a machine
             #       with X, Y, Y1, and Z steppers.
@@ -111,10 +113,11 @@ class CartKinematics:
             #       now on.
             logging.info(f"CartKinematics: setting limits={rail.get_range()} on stepper: {rail.get_name()}")
             self.limits[axis] = rail.get_range()
+
     def note_z_not_homed(self):
         # Helper for Safe Z Home
         self.limits[2] = (1.0, -1.0)
-    
+
     def home_axis(self, homing_state, axis, rail):
         # NOTE: "homing_state" is an instance of the "Homing" class.
         
