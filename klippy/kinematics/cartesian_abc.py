@@ -20,7 +20,6 @@ from . import idex_modes
 from kinematics.cartesian import CartKinematics
 from copy import deepcopy
 from collections import namedtuple
-from pprint import pformat
 
 class CartKinematicsABC(CartKinematics):
     """Kinematics for the ABC axes in the main toolhead class.
@@ -61,6 +60,9 @@ class CartKinematicsABC(CartKinematics):
         self.axis_config = deepcopy(axes_ids)   # list of length <= 3: [0, 1, 3], [3, 4], [3, 4, 5], etc.
         self.axis_names: str = axis_set_letters # char of length <= 3: "XYZ", "AB", "ABC", etc.
         self.axis_count = len(self.axis_names)  # integer count of configured axes (e.g. 2 for "XY").
+        
+        # Generate "local" indices (in the 0,1,2 range) for the kinematic's axes.
+        self.axis_local = [i for i in range(self.axis_count)]  # Either [0, 1, 2], [0, 1] or [0].
         
         # Mapping dictionaries.
         self.axis_map = {k: v for k, v in zip(self.axis_names, self.axis_config)}       # {"x": 0}
@@ -103,11 +105,11 @@ class CartKinematicsABC(CartKinematics):
             # Else use the provided trapq object.
             self.trapq = trapq
         
-        # Setup axis rails. DISABLED!
-        # self.dual_carriage_axis = None
-        # self.dual_carriage_rails = []
+        # Setup axis rails.
+        self.dual_carriage_axis = None
+        self.dual_carriage_rails = []
         
-        # NOTE: A "PrinterRail" is setup by LookupMultiRail, per each 
+        # NOTE: A "PrinterRail" is setup by LookupMultiRail, per each
         #       of the three axis, including their corresponding endstops.
         #       We do this by looking for "[stepper_?]" sections in the config.
         # NOTE: The "self.rails" list contains "PrinterRail" objects, which
@@ -115,7 +117,7 @@ class CartKinematicsABC(CartKinematics):
         self.rails = [stepper.LookupMultiRail(config.getsection('stepper_' + n))
                       for n in self.axis_names.lower()]
         
-        # NOTE: "xyz_axis_names" must always be "xyz" and not "abc", 
+        # NOTE: "xyz_axis_names" must always be "xyz" and not "abc",
         #       see "cartesian_stepper_alloc" in C code.
         # TODO: Check if it also needs to be length 3 every time.
         #       The call to "setup_itersolve" for a manual stepper
@@ -139,8 +141,6 @@ class CartKinematicsABC(CartKinematics):
             ranges_dict[a] = r
         self.axes_min: namedtuple = toolhead.Coord(**{k: l for k, (l, h) in ranges_dict.items()})
         self.axes_max: namedtuple = toolhead.Coord(**{k: h for k, (l, h) in ranges_dict.items()})
-        # logging.info("Setup self.axes_min: \n" + pformat(self.axes_min))
-        # logging.info("Setup self.axes_max: \n" + pformat(self.axes_max))
         self.dc_module = None
         
         # Check for dual carriage support
@@ -167,7 +167,7 @@ class CartKinematicsABC(CartKinematics):
             s.set_trapq(self.trapq)
             # NOTE: This object is used by "toolhead._update_move_time".
             toolhead.register_step_generator(s.generate_steps)
-            # TODO: Check if this "generator" should be appended to 
+            # TODO: Check if this "generator" should be appended to
             #       the "self.step_generators" list in the toolhead,
             #       or to the list in the new TrapQ...
             #       Using the toolhead for now.
@@ -200,7 +200,7 @@ class CartKinematicsABC(CartKinematics):
     def get_steppers(self):
         # NOTE: The "self.rails" list contains "PrinterRail" objects, which
         #       can have one or more stepper (PrinterStepper/MCU_stepper) objects.
-        # NOTE: run "get_steppers" on each "PrinterRail" object from 
+        # NOTE: run "get_steppers" on each "PrinterRail" object from
         #       the "self.rails" list. That method returns the list of
         #       all "PrinterStepper"/"MCU_stepper" objects in the kinematic.
         return [s for rail in self.rails for s in rail.get_steppers()]
@@ -261,9 +261,13 @@ class CartKinematicsABC(CartKinematics):
             # Get the proper rail for the "dual-carriage" case.
             if self.dc_module and axis == self.dc_module.axis:
                 rail = self.dc_module.get_primary_rail().get_rail()
+            elif axis not in self.axis_local:
+                msg = f"CartKinematicsABC warning: not setting limits on local axis {axis} as it"
+                msg += f" is not in the local list of configured axes: {self.axis_local}"
+                logging.warning(msg)
+                continue
             else:
                 rail = self.rails[axis]
-            logging.info(f"CartKinematicsABC: setting limits={rail.get_range()} on stepper: {rail.get_name()}")
             # NOTE: Here each limit becomes associated to a certain "rail" (i.e. an axis).
             #       If the rails were set up as "XYZ" in that order (as per "self.axis_names"),
             #       the limits will now correspond to them in that same order.
@@ -271,6 +275,7 @@ class CartKinematicsABC(CartKinematics):
             # NOTE: This will put the axis to a "homed" state, which means that
             #       the unhomed part of the kinematic move check will pass from
             #       now on.
+            logging.info(f"CartKinematicsABC: setting limits={rail.get_range()} on stepper: {rail.get_name()}")
             self.limits[axis] = rail.get_range()
 
     def note_z_not_homed(self):
@@ -315,7 +320,7 @@ class CartKinematicsABC(CartKinematics):
         end_pos = move.end_pos
         for i, axis in enumerate(self.axis_config):
             # TODO: Check if its better to iterate over "self.axis" instead,
-            #       which is forced to lenght 3. For now "self.axis_config"
+            #       which is forced to length 3. For now "self.axis_config"
             #       seems more reasonable, as it will be the toolhead passing
             #       the move, and it was the toolhead that specified the axis
             #       indices for this kinematic during setup in the first place.
