@@ -5,11 +5,10 @@
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 
-import logging, math
-import stepper
+import logging
 from copy import deepcopy
 from collections import namedtuple
-from pprint import pformat
+import stepper
 
 class CoreXYKinematicsABC:
     """CoreXY kinematics for the XYS or ABC axes in the main toolhead class.
@@ -41,6 +40,9 @@ class CoreXYKinematicsABC:
         self.axis_config = deepcopy(axes_ids)   # list of length <= 3: [0, 1, 3], [3, 4], [3, 4, 5], etc.
         self.axis_names = axis_set_letters      # char of length <= 3: "XYZ", "AB", "ABC", etc.
         self.axis_count = len(self.axis_names)  # integer count of configured axes (e.g. 2 for "XY").
+
+        # Generate "local" indices (in the 0,1,2 range) for the kinematic's axes.
+        self.axis_local = [i for i in range(self.axis_count)]  # Either [0, 1, 2], [0, 1] or [0].
 
         # Just to check
         if len(self.axis_config) != self.axis_count:
@@ -187,18 +189,18 @@ class CoreXYKinematicsABC:
             self.home_axis(homing_state, axis, self.rails[rail_index])
     
     def home_axis(self, homing_state, axis, rail):
-            # Determine movement
-            position_min, position_max = rail.get_range()
-            hi = rail.get_homing_info()
-            homepos = [None for i in range(self.toolhead_axis_count + 1)]
-            homepos[axis] = hi.position_endstop
-            forcepos = list(homepos)
-            if hi.positive_dir:
-                forcepos[axis] -= 1.5 * (hi.position_endstop - position_min)
-            else:
-                forcepos[axis] += 1.5 * (position_max - hi.position_endstop)
-            # Perform homing
-            homing_state.home_rails([rail], forcepos, homepos)
+        # Determine movement
+        position_min, position_max = rail.get_range()
+        hi = rail.get_homing_info()
+        homepos = [None for i in range(self.toolhead_axis_count + 1)]
+        homepos[axis] = hi.position_endstop
+        forcepos = list(homepos)
+        if hi.positive_dir:
+            forcepos[axis] -= 1.5 * (hi.position_endstop - position_min)
+        else:
+            forcepos[axis] += 1.5 * (position_max - hi.position_endstop)
+        # Perform homing
+        homing_state.home_rails([rail], forcepos, homepos)
     
     def _motor_off(self, print_time):
         self.reset_limits()
