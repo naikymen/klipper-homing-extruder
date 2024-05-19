@@ -39,7 +39,7 @@ class CartKinematicsABC(CartKinematics):
       - [ ] The "checks" still have the XYZ logic.
       - [x] Homing is not implemented for ABC.
       - [ ] Merge the changes for the IDEX stuff.
-    """    
+    """
     def __init__(self, toolhead: ToolHead, config: ConfigWrapper, trapq=None,
                  axes_ids=(3, 4), axis_set_letters="AB"):
         """Cartesian kinematics.
@@ -54,7 +54,6 @@ class CartKinematicsABC(CartKinematics):
             axis_set_letters (str, optional): Configured set of letter axes IDs. Can have length less than 3. Defaults to "AB".
         """
         self.printer = config.get_printer()
-        
         
         # Configured set of axes (indexes) and their letter IDs. Can have length less or equal to 3.
         self.axis_config = deepcopy(axes_ids)   # list of length <= 3: [0, 1, 3], [3, 4], [3, 4, 5], etc.
@@ -73,7 +72,7 @@ class CartKinematicsABC(CartKinematics):
             msg = f"CartKinematicsABC: Error. The amount of axis indexes in '{self.axis_config}'"
             msg += f" does not match the count of axis names '{self.axis_names}'."
             logging.exception(msg)
-            raise Exception(msg)
+            raise self.printer.config_error(msg)
         
         # NOTE: Infer the triplet from one of the axes: 1 means XYZ; 2 means ABC.
         triplet_number = axes_ids[0] // 3

@@ -456,13 +456,15 @@ class ToolHead:
         self.axis_map = {a: i for i, a in enumerate(list(self.ax_letters)[:self.min_axes] + ["E"])}
         # Full set of configured axes indexes, including the extruder.
         self.axis_config = [self.axis_map[x] for x in (self.axis_names + "E")]
-        logging.info(f"ToolHead: setup axis_map to '{self.axis_map}' and axis_config to '{self.axis_config}'.")
+        msg = f"ToolHead: setup axis_map to '{self.axis_map}' and axis_config to '{self.axis_config}'."
+        logging.info(msg)
 
         # Which of the kinematic (non-extruder) axes are limited by the general acceleration setting.
         self.accel_limited_axes = config.get('accel_limited_axes', self.axis_names)  # e.g. "XYZ", "XYZABC", "XY".
         # Check.
         if not all([n in self.axis_names for n in self.accel_limited_axes]):
-            msg = f"ToolHead setup error: all accel limited axes ({self.accel_limited_axes}) must be in the configured axis names ({self.axis_names})."
+            msg = f"ToolHead setup error: all accel limited axes ({self.accel_limited_axes})"
+            msg += f" must be in the configured axis names ({self.axis_names})."
             logging.exception(msg)
             raise config.error(msg)
         # Same thing, but in integer representation.
@@ -471,7 +473,9 @@ class ToolHead:
         # TODO: support more kinematics.
         self.supported_kinematics = ["cartesian_abc", "corexy_abc", "none"]  # Removed "cartesian" until I fix it.
         
-        logging.info(f"ToolHead: starting setup with axes={self.axis_names}, pos_length={self.pos_length}, and accel_limited_axes={self.accel_limited_axes}")
+        msg = f"ToolHead: starting setup with axes={self.axis_names}, pos_length={self.pos_length}"
+        msg += f", and accel_limited_axes={self.accel_limited_axes}"
+        logging.info(msg)
         
         self.printer = config.get_printer()
         self.reactor = self.printer.get_reactor()
@@ -546,11 +550,11 @@ class ToolHead:
         #    raise config.error(msg)
         if len(self.axis_names) > 6:
             msg = f"Error loading toolhead with '{self.axis_names}' ({len(self.axis_names)})."
-            msg += " No more than 6 axes can be configured for now."
+            msg += " No more than 6 axes can be configured, yet. Write an issue if you want this."
             logging.exception(msg)
             raise config.error(msg)
         elif self.min_axes > 3:
-            logging.info(f"ToolHead: setting up additional ABC trapq.")
+            logging.info("ToolHead: setting up additional ABC trapq.")
         
         # NOTE: load the gcode objects (?)
         gcode: GCodeDispatch = self.printer.lookup_object('gcode')

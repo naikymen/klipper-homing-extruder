@@ -31,7 +31,8 @@ class CoreXYKinematicsABC:
 
         # WARNING: ONLY THE FULL "XYZ" CONFIGURATION IS SUPPORTED IN COREXY FOR NOW.
         if len(axes_ids) != 3 or axis_set_letters.upper() != "XYZ":
-            raise self.printer.config_error("CoreXYKinematicsABC: Only the full 'XYZ' configuration is supported in corexy for now.")
+            msg = "CoreXYKinematicsABC: Only the full 'XYZ' configuration is supported in corexy for now."
+            raise self.printer.config_error(msg)
         
         # Save utilities for later.
         self.axes_to_xyz = toolhead.axes_to_xyz
@@ -48,7 +49,7 @@ class CoreXYKinematicsABC:
         if len(self.axis_config) != self.axis_count:
             msg = f"CartKinematicsABC: The amount of axis indexes in '{self.axis_config}'"
             msg += f" does not match the count of axis names '{self.axis_names}'."
-            raise Exception(msg)
+            raise self.printer.config_error(msg)
         
         # NOTE: Infer the triplet from one of the axes: 1 means XYZ; 2 means ABC.
         triplet_number = axes_ids[0] // 3
