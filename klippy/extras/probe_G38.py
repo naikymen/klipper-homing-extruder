@@ -53,7 +53,7 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
     # Overwrite only the "probe_prepare" method, to include the dwell.
     def probe_prepare(self, hmove):
         if self.multi == 'OFF' or self.multi == 'FIRST':
-            self.lower_probe()
+            self._lower_probe()
             if self.multi == 'FIRST':
                 self.multi = 'ON'
             
