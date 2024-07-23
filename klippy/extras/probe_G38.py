@@ -15,18 +15,16 @@ if TYPE_CHECKING:
     from ..gcode import GCodeDispatch, GCodeCommand
     from .homing import PrinterHoming
     from .gcode_move import GCodeMove
-
-# TODO: check if this is useful.
-# from . import manual_probe
+# pylint: disable=missing-class-docstring,missing-function-docstring,invalid-name,line-too-long,consider-using-f-string
+# pylint: disable=logging-fstring-interpolation,logging-not-lazy,fixme
 
 import logging
-import pins
 from . import probe
 
 
 class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
     def __init__(self, config: ConfigWrapper):
-        
+
         # Instantiate the base "ProbeEndstopWrapper" class, as usual.
         # The parent class only reads from the "config" the "pin" parameter,
         # it does not require a name for it.
@@ -41,7 +39,7 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
         # NOTE: add XY steppers too, see "_handle_mcu_identify" below.
         self.printer.register_event_handler('klippy:mcu_identify',
                                             self._handle_mcu_identify)
-        
+
     def register_query_endstop(self, name, config):
         # NOTE: grabbed from "stepper.py" to support querying the probes.
         # Load the "query_endstops" module.
@@ -56,7 +54,7 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
             self._lower_probe()
             if self.multi == 'FIRST':
                 self.multi = 'ON'
-            
+
         # NOTE: borrowed code from "smart_effector", trying to
         #       avoid the "Probe triggered prior to movement" error.
         if self.recovery_time:
@@ -64,7 +62,7 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
             toolhead.dwell(self.recovery_time)
 
     # NOTE: Register XY steppers in the endstop too.
-    #       The following includes Z steppers and 
+    #       The following includes Z steppers and
     #       extruder steppers.
     def _handle_mcu_identify(self):
         logging.info("ProbeEndstopWrapperG38._handle_mcu_identify activated (XYZE axes)")
@@ -77,7 +75,7 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
                 # NOTE: get_steppers returns all "PrinterStepper"/"MCU_stepper" objects in the kinematic.
                 if stepper.is_active_axis('x') or stepper.is_active_axis('y') or stepper.is_active_axis('z'):
                     self.add_stepper(stepper)
-                
+
         # NOTE: Register ABC steppers too.
         kin_abc = toolhead.get_kinematics_abc()
         if kin_abc is not None:
@@ -85,7 +83,7 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
                 # NOTE: get_steppers returns all "PrinterStepper"/"MCU_stepper" objects in the kinematic.
                 if stepper.is_active_axis('x') or stepper.is_active_axis('y') or stepper.is_active_axis('z'):
                     self.add_stepper(stepper)
-        
+
         # NOTE: register steppers from all extruders.
         extruder_objs = self.printer.lookup_extruders()
         for extruder_obj in extruder_objs:
@@ -93,7 +91,7 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
             extruder = extruder_obj[1]                      # PrinterExtruder
             extruder_stepper = extruder.extruder_stepper    # ExtruderStepper
             for stepper in extruder_stepper.rail.get_steppers():
-                # NOTE: this requires the PrinterRail or MCU_stepper objects 
+                # NOTE: this requires the PrinterRail or MCU_stepper objects
                 #       to have the "get_steppers" method. The original MCU_stepper
                 #       object did not, but it has been patched at "stepper.py".
                 self.add_stepper(stepper)
@@ -110,7 +108,7 @@ class ProbeG38:
         - G38.3 - (True/False) probe toward workpiece, stop on contact.
         - G38.4 - (False/True) probe away from workpiece, stop on loss of contact, signal error if failure.
         - G38.5 - (False/False) probe away from workpiece, stop on loss of contact.
-    
+
     This feature relies on a great patch for the HomingMove class at "homing.py",
     and small patches in the ToolHead class at "toolhead.py", which
     enable support for extruder homing/probing. These are mainly:
@@ -131,7 +129,7 @@ class ProbeG38:
         self.mcu_probe_name=mcu_probe_name
         self.probe = probe.PrinterProbe(config=config, mcu_probe=ProbeEndstopWrapperG38(config))
         self.printer = config.get_printer()
-        
+
         # NOTE: dummy extrude factor
         self.extrude_factor = 1.0
 
@@ -162,7 +160,7 @@ class ProbeG38:
 
         # NOTE: Register commands
         self.gcode: GCodeDispatch = self.printer.lookup_object('gcode')
-        
+
         # NOTE: From LinuxCNC: https://linuxcnc.org/docs/2.6/html/gcode/gcode.html
         #       - G38.2 - Probe toward workpiece, stop on contact, signal error if failure.
         self.gcode.register_command("G38.2",
@@ -184,7 +182,7 @@ class ProbeG38:
                                     self.cmd_PROBE_G38_5,
                                     when_not_ready=False,
                                     desc=self.cmd_PROBE_G38_5_help)
-    
+
     # Probe command variants
     cmd_PROBE_G38_5_help = "G38.5 Probe away from workpiece, stop on loss of contact."
     def cmd_PROBE_G38_5(self, gcmd):
@@ -215,7 +213,7 @@ class ProbeG38:
         extruder = toolhead.get_extruder()
         active_extruder_name = extruder.name
 
-        # NOTE: configure whether te move will be in absolute 
+        # NOTE: configure whether te move will be in absolute
         #       or relative coordinates. Respect the G90/G91 setting.
         gcode_move: GCodeMove = self.printer.lookup_object('gcode_move')
         self.absolute_coord = gcode_move.absolute_coord
@@ -232,8 +230,8 @@ class ProbeG38:
         #       stepper names, coming from the axes involved in the probing
         #       move. For example, a probing move to X10,Y10 will have
         #       elements ["x", "y"]. These will then be matched to stepper
-        #       names at the end of "probing_move" (see probing_move below 
-        #       and homing.py), to prevent raising "Probe triggered 
+        #       names at the end of "probing_move" (see probing_move below
+        #       and homing.py), to prevent raising "Probe triggered
         #       prior to movement" errors accidentally.
         probe_axes = []
 
@@ -262,7 +260,7 @@ class ProbeG38:
                     self.last_position[toolhead.axis_count] = v + self.base_position[toolhead.axis_count]
                 # NOTE: register which axes are being probed
                 probe_axes.append(active_extruder_name)  # Append "extruderN"
-            
+
             # Parse feedrate
             if 'F' in params:
                 gcode_speed = float(params['F'])
@@ -270,20 +268,20 @@ class ProbeG38:
                     raise gcmd.error("Invalid speed in '%s'"
                                      % (gcmd.get_commandline(),))
                 self.speed = gcode_speed * self.speed_factor
-        
+
         except ValueError as e:
             raise gcmd.error(f"ProbeG38: Unable to parse move {gcmd.get_commandline()} with exception: {str(e)}")
-        
+
         # NOTE: "move_with_transform" is just "toolhead.move":
         # self.move_with_transform(self.last_position, self.speed)
 
         # TODO: should this go here? borrowed code from "smart_effector"
         if self.recovery_time:
             toolhead.dwell(self.recovery_time)
-        
+
         # NOTE: my probe works!
-        self.probe_g38(pos=self.last_position, speed=self.speed, 
-                       error_out=error_out, gcmd=gcmd, 
+        self.probe_g38(pos=self.last_position, speed=self.speed,
+                       error_out=error_out, gcmd=gcmd,
                        trigger_invert=trigger_invert,
                        probe_axes=probe_axes)
 
@@ -296,7 +294,7 @@ class ProbeG38:
         # curtime = self.printer.get_reactor().monotonic()
         # if 'z' not in toolhead.get_status(curtime)['homed_axes']:
         #     raise self.printer.command_error("Must home before probe")
-        
+
         phoming: PrinterHoming = self.printer.lookup_object('homing')
 
         # NOTE: This is no longer necessary, because I've passed
@@ -306,14 +304,14 @@ class ProbeG38:
         # NOTE: This is also no longer necessary.
         # NOTE: "self.z_position" is equal to the "min_position"
         #       parameter from the "z_stepper" section.
-        #       It is used to override the Z component of the 
+        #       It is used to override the Z component of the
         #       current toolhead position, probably to generate
         #       the target coordinates for the homing move.
         # pos[2] = self.z_position
-        
+
         try:
             # NOTE: This probe method uses "phoming.probing_move",
-            #       passing it "mcu_probe" which is an instance of 
+            #       passing it "mcu_probe" which is an instance of
             #       "ProbeEndstopWrapper", a wrapper for the probes'
             #       MCU_endstop object.
             # NOTE: This is in contrast to "phoming.manual_home",
@@ -321,12 +319,12 @@ class ProbeG38:
             #       It turns out that, if not provided, HomingMove
             #       will get the main toolhead by lookup and use it.
             # NOTE: the method is passed "pos", which is the target
-            #       XYZE coordinates for the probing move (see notes 
-            #       above, and the "cmd_PROBE_G38_2" method). 
-            # NOTE: I had to add a "check_triggered" argument to 
+            #       XYZE coordinates for the probing move (see notes
+            #       above, and the "cmd_PROBE_G38_2" method).
+            # NOTE: I had to add a "check_triggered" argument to
             #       "probing_move" for G38.3 to work properly.
             logging.info("probe_g38 probing with axes: " + str(probe_axes))
-            
+
             # NOTE: "epos" is "trigpos" from the "homing_move" method.
             epos = phoming.probing_move(mcu_probe=self.probe.mcu_probe,
                                         pos=pos,
@@ -341,7 +339,7 @@ class ProbeG38:
             # NOTE: the "fail" logic of the G38 gcode could be
             #       based on this behaviour.
             reason = str(e)
-            
+
             # NOTE: to respect the original logic, only "timeout" errors
             #       can be ignored. Else, the error should be logged with
             #       the "command_error" method, as always.
@@ -356,7 +354,7 @@ class ProbeG38:
             else:
                 # NOTE: log the error as usual if it is was not a timeout error.
                 raise self.printer.command_error(reason)
-        
+
         # The toolhead's position was set to haltpos in "homing.py" after probing.
         haltpos = toolhead.get_position()
         status_prefix = "probe trigger"
@@ -364,7 +362,7 @@ class ProbeG38:
             # If "haltpos" and "target pos" are equal, then the move was not interrupted,
             # and no probe was triggered during the move.
             status_prefix = "probe ended without trigger"
-        
+
         logging.info(f"probe_g38 probe ended with status: {status_prefix}")
 
         if toolhead.axis_count == 3:
@@ -377,13 +375,13 @@ class ProbeG38:
             msg = " ".join([k.lower() + "=" + "%.3f" % haltpos[v] for k, v in toolhead.axis_map.items() ])
             self.gcode.respond_info(status_prefix + " at " + msg)
             # raise self.printer.command_error(f"Can't respond with info for toolhead.axis_count={toolhead.axis_count}")
-        
+
         return epos[:-1]
 
 
 def load_config(config):
     # TODO: Consider registering the PrinterProbe object as 'probe' in the printer.
-    #       This would enable our 'probe' to be use by bed_mesh. 
+    #       This would enable our 'probe' to be use by bed_mesh.
     #       For example in bltouch the load_config function does this:
     #           blt = BLTouchEndstopWrapper(config)
     #           config.get_printer().add_object('probe', probe.PrinterProbe(config, blt))

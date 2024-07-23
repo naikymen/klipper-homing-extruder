@@ -13,6 +13,8 @@ if TYPE_CHECKING:
     from ..configfile import ConfigWrapper
     from ..toolhead import ToolHead
     from .homing import PrinterHoming
+# pylint: disable=missing-class-docstring,missing-function-docstring,invalid-name,line-too-long,consider-using-f-string
+# pylint: disable=logging-fstring-interpolation,logging-not-lazy,fixme
 
 import logging
 import pins
@@ -103,7 +105,7 @@ class PrinterProbe:
         if self.mcu_probe in endstops:
             self.multi_probe_begin()
     def _handle_home_rails_end(self, homing_state, rails):
-        logging.info(f"probe._handle_home_rails_end: function triggered.")
+        logging.info("probe._handle_home_rails_end: function triggered.")
         endstops = [es for rail in rails for es, name in rail.get_endstops()]
         if self.mcu_probe in endstops:
             self.multi_probe_end()
@@ -475,7 +477,7 @@ class ProbePointsHelper:
         self.printer.register_event_handler("klippy:connect",
                                             self._handle_connect)
     def _handle_connect(self):
-            self.toolhead = self.printer.lookup_object('toolhead')
+        self.toolhead = self.printer.lookup_object('toolhead')
     def minimum_points(self,n):
         if len(self.probe_points) < n:
             raise self.printer.config_error(

@@ -4,11 +4,10 @@
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 
-# TODO: check if this is useful.
-# from . import manual_probe
+# pylint: disable=missing-class-docstring,missing-function-docstring,invalid-name,line-too-long,consider-using-f-string
+# pylint: disable=logging-fstring-interpolation,logging-not-lazy,fixme
 
 import logging
-import pins
 from . import probe, probe_G38
 
 class ProbeG38multi(probe_G38.ProbeG38):
@@ -19,12 +18,12 @@ class ProbeG38multi(probe_G38.ProbeG38):
 
         # NOTE: get name of the probe from the config
         self.probe_name = config.get_name().split()[1]
-        
+
         # NOTE: dummy extrude factor
         self.extrude_factor = 1.0
 
         self.printer = config.get_printer()
-        
+
         # NOTE: Instantiate probe objects:
         #       -   "ProbeEndstopWrapper": Endstop wrapper that enables probe specific features.
         self.mcu_probe =probe_G38.ProbeEndstopWrapperG38(config)
@@ -34,7 +33,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
         self.probe = PrinterProbeMux(config=config,
                                      mcu_probe=self.mcu_probe,
                                      mcu_probe_name=self.mcu_probe_name)
-        
+
         # NOTE: register "mcu_probe" for endstop querying.
         self.mcu_probe.register_query_endstop(name=self.mcu_probe_name, config=config)
 
@@ -65,7 +64,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
 
         # NOTE: Register commands
         self.gcode = self.printer.lookup_object('gcode')
-        
+
         # NOTE: From LinuxCNC: https://linuxcnc.org/docs/2.6/html/gcode/gcode.html
         #       - G38.2 - Probe toward workpiece, stop on contact, signal error if failure.
         self.gcode.register_mux_command("MULTIPROBE2", "PROBE_NAME",
@@ -87,7 +86,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
                                         self.probe_name, self.cmd_PROBE_G38_5,
                                         #when_not_ready=False,
                                         desc=self.cmd_PROBE_G38_5_help)
-        
+
         # Register regular G38.n commands.
         # First check if this is the first instance of a multi-probe object.
         if "G38.2" in self.gcode.ready_gcode_handlers:
@@ -96,7 +95,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
         else:
             self.main_object = True
             logging.info("probeProbeG38multi: G38.2 not yet configured, running G38.n register_command.")
-            
+
             # NOTE: From LinuxCNC: https://linuxcnc.org/docs/2.6/html/gcode/gcode.html
             #       - G38.2 - Probe toward workpiece, stop on contact, signal error if failure.
             self.gcode.register_command("G38.2",
@@ -118,7 +117,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
                                         self.cmd_MONOPROBE_G38_5,
                                         when_not_ready=False,
                                         desc=self.cmd_MONOPROBE_G38_5_help)
-    
+
     def get_active_probe(self):
         """Get the "active" probe from the "active" extruder.
         """
@@ -135,17 +134,17 @@ class ProbeG38multi(probe_G38.ProbeG38):
             msg += f"G38 will use the first configured probe, with name: {self.probe_name}"
             self.gcode.respond_info(msg)
             extruder_name = self.probe_name
-        
+
         # Look for the active probe object, by the extruder name.
         # This will raise an error if no match is found (see "klippy.py").
         probe_object = self.printer.lookup_object(name='probe_G38_multi' + ' ' + extruder_name)
-        
+
         # Alternatively, all objects can be looked up.
         # probe_objects = self.printer.lookup_objects(module='probe_G38_multi')
-        
+
         # Return the object, which is an instance of the ProbeG38multi class.
         return probe_object
-    
+
     # MONOPROBE commands
     cmd_MONOPROBE_G38_5_help = "G38.5 Probe away from workpiece, stop on loss of contact."
     def cmd_MONOPROBE_G38_5(self, gcmd):
@@ -175,7 +174,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
         extruder = toolhead.get_extruder()
         active_extruder_name = extruder.name
 
-        # NOTE: configure whether te move will be in absolute 
+        # NOTE: configure whether te move will be in absolute
         #       or relative coordinates. Respect the G90/G91 setting.
         gcode_move = self.printer.lookup_object('gcode_move')
         absolute_coord = gcode_move.absolute_coord
@@ -192,8 +191,8 @@ class ProbeG38multi(probe_G38.ProbeG38):
         #       stepper names, coming from the axes involved in the probing
         #       move. For example, a probing move to X10,Y10 will have
         #       elements ["x", "y"]. These will then be matched to stepper
-        #       names at the end of "probing_move" (see probing_move below 
-        #       and homing.py), to prevent raising "Probe triggered 
+        #       names at the end of "probing_move" (see probing_move below
+        #       and homing.py), to prevent raising "Probe triggered
         #       prior to movement" errors accidentally.
         probe_axes = []
 
@@ -223,7 +222,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
                     last_position[toolhead.axis_count] = v + base_position[toolhead.axis_count]
                 # NOTE: register which axes are being probed
                 probe_axes.append(active_extruder_name)  # Append "extruderN"
-            
+
             # Parse feedrate
             speed = self.speed  # Default
             if 'F' in params:
@@ -232,31 +231,31 @@ class ProbeG38multi(probe_G38.ProbeG38):
                     raise gcmd.error("Invalid speed in '%s'"
                                      % (gcmd.get_commandline(),))
                 speed = gcode_speed * speed_factor
-        
+
         except ValueError as e:
             raise gcmd.error(f"ProbeG38: Unable to parse move {gcmd.get_commandline()} with exception: {str(e)}")
-        
+
         # NOTE: "move_with_transform" is just "toolhead.move":
         # self.move_with_transform(self.last_position, self.speed)
 
         # TODO: should this go here? borrowed code from "smart_effector"
         if self.recovery_time:
             toolhead.dwell(self.recovery_time)
-            
+
         # Get active probe object, which might be the current ProbeG38multi instance,
         # or an instance for another probe pin. It is based on the active extruder name.
         probe_object = self.get_active_probe()
-        
+
         # Get the probe_g38 method, corresponding to the current probe_object/extruder.
         probe_g38 = probe_object.probe_g38
-        
+
         # NOTE: my probe works!
-        probe_g38(pos=last_position, speed=speed, 
-                  error_out=error_out, gcmd=gcmd, 
+        probe_g38(pos=last_position, speed=speed,
+                  error_out=error_out, gcmd=gcmd,
                   trigger_invert=trigger_invert,
                   probe_axes=probe_axes)
 
-    
+
     # MULTIPROBE commands, overrides the default methods from "probe_G38.py".
     # TODO: cleanup. Since adding "monoprobe" commands, this class became rather obfuscated.
     cmd_PROBE_G38_2_help = "G38.2-style probe toward workpiece, stop on contact, signal error if failure. Usage: MULTIPROBEn PROBE_NAME=configname [X=x] [Y=x] [Z=x] [E=x]"
@@ -275,7 +274,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
         extruder = toolhead.get_extruder()
         active_extruder_name = extruder.name
 
-        # NOTE: configure whether te move will be in absolute 
+        # NOTE: configure whether te move will be in absolute
         #       or relative coordinates. Respect the G90/G91 setting.
         gcode_move = self.printer.lookup_object('gcode_move')
         self.absolute_coord = gcode_move.absolute_coord
@@ -292,8 +291,8 @@ class ProbeG38multi(probe_G38.ProbeG38):
         #       stepper names, coming from the axes involved in the probing
         #       move. For example, a probing move to X10,Y10 will have
         #       elements ["x", "y"]. These will then be matched to stepper
-        #       names at the end of "probing_move" (see probing_move below 
-        #       and homing.py), to prevent raising "Probe triggered 
+        #       names at the end of "probing_move" (see probing_move below
+        #       and homing.py), to prevent raising "Probe triggered
         #       prior to movement" errors accidentally.
         probe_axes = []
 
@@ -313,7 +312,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
                         self.last_position[pos] = v + base_position[pos]
                     # NOTE: register which axes are being probed
                     probe_axes.append(axis.lower())  # Append "X", "Y", or "Z".
-            
+
             coord = gcmd.get_float('E', None)
             if coord is not None:
                 v = float(coord) * self.extrude_factor
@@ -325,7 +324,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
                     self.last_position[toolhead.axis_count] = v + base_position[toolhead.axis_count]
                 # NOTE: register which axes are being probed
                 probe_axes.append(active_extruder_name)  # Append "extruderN"
-            
+
             # Parse feedrate
             feed = gcmd.get_float('F', None)
             if feed is not None:
@@ -334,34 +333,34 @@ class ProbeG38multi(probe_G38.ProbeG38):
                     raise gcmd.error("Invalid speed in '%s'"
                                      % (gcmd.get_commandline(),))
                 self.speed = gcode_speed * self.speed_factor
-        
+
         except ValueError as e:
             raise gcmd.error(f"ProbeG38: Unable to parse move {gcmd.get_commandline()} with exception: {str(e)}")
-        
+
         # NOTE: "move_with_transform" is just "toolhead.move":
         # self.move_with_transform(self.last_position, self.speed)
 
         # TODO: should this go here?
         if self.recovery_time:
             toolhead.dwell(self.recovery_time)
-        
+
         # NOTE: have a look at the methods in ProbeG38 at "probe_G38.py" for details.
-        self.probe_g38(pos=self.last_position, speed=self.speed, 
-                       error_out=error_out, gcmd=gcmd, 
+        self.probe_g38(pos=self.last_position, speed=self.speed,
+                       error_out=error_out, gcmd=gcmd,
                        trigger_invert=trigger_invert,
                        probe_axes=probe_axes)
 
 class PrinterProbeMux(probe.PrinterProbe):
     def __init__(self, config, mcu_probe, mcu_probe_name='probe'):
         """
-        This class inherits methods from "probe.PrinterProbe", 
+        This class inherits methods from "probe.PrinterProbe",
         but the commands are setup as "Mux" instead of "regular"
         GCODE commands. This is required to setup multiple probes.
-        
+
         config: ?
         mcu_probe: this is of "ProbeEndstopWrapper" class, which is a wrapper for "MCU_endstop".
         """
-        
+
         # TODO: check if this init can be stripped down.
         self.printer = config.get_printer()
         self.name = config.get_name()
@@ -377,7 +376,7 @@ class PrinterProbeMux(probe.PrinterProbe):
         self.last_state = False
         self.last_z_result = 0.
         self.gcode_move = self.printer.load_object(config, "gcode_move")
-        
+
         # Infer Z position to move to during a probe
         if config.has_section('stepper_z'):
             zconfig = config.getsection('stepper_z')
@@ -387,7 +386,7 @@ class PrinterProbeMux(probe.PrinterProbe):
             pconfig = config.getsection('printer')
             self.z_position = pconfig.getfloat('minimum_z_position', 0.,
                                                note_valid=False)
-        
+
         # Multi-sample support (for improved accuracy)
         self.sample_count = config.getint('samples', 1, minval=1)
         self.sample_retract_dist = config.getfloat('sample_retract_dist', 2.,
@@ -399,11 +398,11 @@ class PrinterProbeMux(probe.PrinterProbe):
                                                  minval=0.)
         self.samples_retries = config.getint('samples_tolerance_retries', 0,
                                              minval=0)
-        
+
         # Register z_virtual_endstop pin
         # TODO: study this to implement probing on any direction.
         self.printer.lookup_object('pins').register_chip(self.mcu_probe_name, self)
-        
+
         # Register homing event handlers
         # TODO: these will not be triggered by extra toolheads, consider updating.
         self.printer.register_event_handler("homing:homing_move_begin",
@@ -416,30 +415,30 @@ class PrinterProbeMux(probe.PrinterProbe):
                                             self._handle_home_rails_end)
         self.printer.register_event_handler("gcode:command_error",
                                             self._handle_command_error)
-        
+
         # Register PROBE/QUERY_PROBE commands
         self.gcode = self.printer.lookup_object('gcode')
-        
+
         self.gcode.register_mux_command('PROBE', 'PROBE_NAME',
                                         self.mcu_probe_name,
                                         self.cmd_PROBE,
                                         desc=self.cmd_PROBE_help)
-        
+
         self.gcode.register_mux_command('QUERY_PROBE', 'PROBE_NAME',
                                         self.mcu_probe_name,
                                         self.cmd_QUERY_PROBE,
                                         desc=self.cmd_QUERY_PROBE_help)
-        
+
         self.gcode.register_mux_command('PROBE_CALIBRATE', 'PROBE_NAME',
                                         self.mcu_probe_name,
                                         self.cmd_PROBE_CALIBRATE,
                                         desc=self.cmd_PROBE_CALIBRATE_help)
-        
+
         self.gcode.register_mux_command('PROBE_ACCURACY', 'PROBE_NAME',
                                         self.mcu_probe_name,
                                         self.cmd_PROBE_ACCURACY,
                                         desc=self.cmd_PROBE_ACCURACY_help)
-        
+
         self.gcode.register_mux_command('Z_OFFSET_APPLY_PROBE', 'PROBE_NAME',
                                         self.mcu_probe_name,
                                         self.cmd_Z_OFFSET_APPLY_PROBE,
