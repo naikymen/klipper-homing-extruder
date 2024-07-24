@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ..klippy import Printer
+    from ..kinematics import PrinterExtruder, ExtruderStepper
     from ..configfile import ConfigWrapper
     from ..toolhead import ToolHead
     from ..gcode import GCodeDispatch, GCodeCommand
@@ -23,12 +24,13 @@ from . import probe
 
 
 class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
-    def __init__(self, config: ConfigWrapper):
+    """Subclass of ProbeEndstopWrapper, implementing multi-axis probing."""
+    def __init__(self, config: ConfigWrapper, mcu_probe_name: str = 'probe'):
 
         # Instantiate the base "ProbeEndstopWrapper" class, as usual.
         # The parent class only reads from the "config" the "pin" parameter,
         # it does not require a name for it.
-        super(ProbeEndstopWrapperG38, self).__init__(config)
+        super().__init__(config, mcu_probe_name)
 
         # NOTE: not really needed, its done already by "super()".
         self.printer = config.get_printer()
@@ -41,6 +43,7 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
                                             self._handle_mcu_identify)
 
     def register_query_endstop(self, name, config):
+        """Function used in 'probe_G38_multi' to register the probe endstop for display."""
         # NOTE: grabbed from "stepper.py" to support querying the probes.
         # Load the "query_endstops" module.
         query_endstops = self.printer.load_object(config, 'query_endstops')
@@ -48,60 +51,56 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
         # NOTE: "self.mcu_endstop" was setup by "super" during init.
         query_endstops.register_endstop(self.mcu_endstop, name)
 
-    # Overwrite only the "probe_prepare" method, to include the dwell.
-    def probe_prepare(self, hmove):
-        if self.multi == 'OFF' or self.multi == 'FIRST':
-            self._lower_probe()
-            if self.multi == 'FIRST':
-                self.multi = 'ON'
-
-        # NOTE: borrowed code from "smart_effector", trying to
-        #       avoid the "Probe triggered prior to movement" error.
-        if self.recovery_time:
-            toolhead: ToolHead = self.printer.lookup_object('toolhead')
-            toolhead.dwell(self.recovery_time)
-
     # NOTE: Register XY steppers in the endstop too.
     #       The following includes Z steppers and
     #       extruder steppers.
     def _handle_mcu_identify(self):
-        logging.info("ProbeEndstopWrapperG38._handle_mcu_identify activated (XYZE axes)")
+        logging.info("ProbeEndstopWrapperG38: _handle_mcu_identify activated.")
 
         # NOTE: Register XYZ steppers.
         toolhead: ToolHead = self.printer.lookup_object('toolhead')
-        kin = toolhead.get_kinematics()
-        if kin is not None:
-            for stepper in kin.get_steppers():
-                # NOTE: get_steppers returns all "PrinterStepper"/"MCU_stepper" objects in the kinematic.
-                if stepper.is_active_axis('x') or stepper.is_active_axis('y') or stepper.is_active_axis('z'):
-                    self.add_stepper(stepper)
 
-        # NOTE: Register ABC steppers too.
-        kin_abc = toolhead.get_kinematics_abc()
-        if kin_abc is not None:
-            for stepper in kin_abc.get_steppers():
-                # NOTE: get_steppers returns all "PrinterStepper"/"MCU_stepper" objects in the kinematic.
-                if stepper.is_active_axis('x') or stepper.is_active_axis('y') or stepper.is_active_axis('z'):
-                    self.add_stepper(stepper)
+        kins = toolhead.kinematics
+        for ax_set in list(kins):
+            kin = toolhead.get_kinematics(ax_set)
+            if kin is not None:
+                # NOTE: "kin.get_steppers" returns all "PrinterStepper"/"MCU_stepper" objects in the kinematic.
+                for stepper in kin.get_steppers():
+                    # NOTE: The usual 'xyz' letters are used here, even if they don't mathc the kin's axis names (e.g. ABC).
+                    if stepper.is_active_axis('x') or stepper.is_active_axis('y') or stepper.is_active_axis('z'):
+                        self.add_stepper(stepper)
 
         # NOTE: register steppers from all extruders.
         extruder_objs = self.printer.lookup_extruders()
         for extruder_obj in extruder_objs:
-            extruder_name = extruder_obj[0]
-            extruder = extruder_obj[1]                      # PrinterExtruder
-            extruder_stepper = extruder.extruder_stepper    # ExtruderStepper
+            # extruder_name = extruder_obj[0]
+            extruder: PrinterExtruder = extruder_obj[1]                      # PrinterExtruder
+            extruder_stepper: ExtruderStepper = extruder.extruder_stepper    # ExtruderStepper
             for stepper in extruder_stepper.rail.get_steppers():
                 # NOTE: this requires the PrinterRail or MCU_stepper objects
                 #       to have the "get_steppers" method. The original MCU_stepper
                 #       object did not, but it has been patched at "stepper.py".
                 self.add_stepper(stepper)
 
+# Main external probe interface
+class PrinterProbeG38(probe.PrinterProbe):
+    """Subclass of PrinterProbe, using ProbeEndstopWrapperG38 instead"""
+    def __init__(self, config: ConfigWrapper, mcu_probe_name='probe'):
+        self.printer = config.get_printer()
+        self.mcu_probe_name = mcu_probe_name
+        self.mcu_probe = ProbeEndstopWrapperG38(config, mcu_probe_name)
+        self.cmd_helper = probe.ProbeCommandHelper(config, self,
+                                                   self.mcu_probe.query_endstop)
+        self.probe_offsets = probe.ProbeOffsetsHelper(config)
+        self.probe_session = probe.ProbeSessionHelper(config, self.mcu_probe, mcu_probe_name)
 
 class ProbeG38:
     """
     ! WARNING EXPERIMENTAL
 
     This class registers G38 commands to probe in general directions.
+
+    The module respects the coordinate system set in gcode_move (i.e. absolute or relative mode).
 
     From LinuxCNC: https://linuxcnc.org/docs/2.6/html/gcode/gcode.html
         - G38.2 - (True/True) probe toward workpiece, stop on contact, signal error if failure.
@@ -111,27 +110,28 @@ class ProbeG38:
 
     This feature relies on a great patch for the HomingMove class at "homing.py",
     and small patches in the ToolHead class at "toolhead.py", which
-    enable support for extruder homing/probing. These are mainly:
+    enable support for extruder homing/probing. These are, broadly:
       - Added logic for calculating the extruder's kin_spos/haltpos/trigpos/etc.
       - Added logic to handle the active extruder in "check_no_movement".
       - Added "set_position_e" to the toolhead.
-
     """
-    def __init__(self, config: ConfigWrapper, mcu_probe_name='probe'):
-        # NOTE: because the "config" is passed to PrinterProbe and ProbeEndstopWrapper,
+    def __init__(self, config: ConfigWrapper, mcu_probe_name: str = 'probe'):
+        # NOTE: Because the "config" is passed to PrinterProbe and ProbeEndstopWrapper,
         #       it will require all the parameters that they require, plus the ones specific
         #       to this class.
-
-        # NOTE: instantiate:
-        #       -   "ProbeEndstopWrapper": Endstop wrapper that enables probe specific features.
-        #       -   "PrinterProbe": ?
-        #self.probe = probe.PrinterProbe(config, probe.ProbeEndstopWrapper(config))
-        self.mcu_probe_name=mcu_probe_name
-        self.probe = probe.PrinterProbe(config=config, mcu_probe=ProbeEndstopWrapperG38(config))
-        self.printer = config.get_printer()
+        self.mcu_probe_name = mcu_probe_name
+        self.probe: probe.PrinterProbe = PrinterProbeG38(config=config, mcu_probe_name=self.mcu_probe_name)
+        self.printer: ConfigWrapper = config.get_printer()
 
         # NOTE: dummy extrude factor
         self.extrude_factor = 1.0
+
+        # Dummy objects, replaced when "cmd_PROBE_G38_2" executes, 
+        # with the current values stored in "gcode_move.py".
+        self.absolute_coord: bool = None
+        self.absolute_extrude: bool = None
+        self.base_position: list = None
+        self.speed_factor: float = None
 
         # NOTE: save original probing config logic.
         #       This logic is used at "_home_cmd.send()" in "mcu.py"
