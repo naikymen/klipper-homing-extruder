@@ -248,7 +248,7 @@ class ProbeG38:
         self.base_position = gcode_move.base_position
 
         # NOTE: Dummy objects for the G1 command parser
-        self.speed_factor = 1
+        self.speed_factor = 1.0
 
         # NOTE: probing axes list. This is populated with strings matching
         #       stepper names, coming from the axes involved in the probing
@@ -310,44 +310,27 @@ class ProbeG38:
                        probe_axes=probe_axes)
 
     def probe_g38(self, pos, speed, error_out, gcmd: GCodeCommand, trigger_invert, probe_axes=None):
-        # NOTE: code copied from "probe._probe".
+        logging.info("probe_g38 probing with axes: " + str(probe_axes))
 
-        # TODO: rethink if homing is neccessary for homing.
+        # TODO: rethink if "homing" the machine is neccessary for probing.
         # curtime = self.printer.get_reactor().monotonic()
         # if 'z' not in toolhead.get_status(curtime)['homed_axes']:
         #     raise self.printer.command_error("Must home before probe")
 
         phoming: PrinterHoming = self.printer.lookup_object('homing')
 
-        # NOTE: This is no longer necessary, because I've passed
-        #       the "pos" argument from "cmd_PROBE_G38_2".
-        # pos = toolhead.get_position()
-
-        # NOTE: This is also no longer necessary.
-        # NOTE: "self.z_position" is equal to the "min_position"
-        #       parameter from the "z_stepper" section.
-        #       It is used to override the Z component of the
-        #       current toolhead position, probably to generate
-        #       the target coordinates for the homing move.
-        # pos[2] = self.z_position
-
         try:
             # NOTE: This probe method uses "phoming.probing_move",
             #       passing it "mcu_probe" which is an instance of
-            #       "ProbeEndstopWrapper", a wrapper for the probes'
-            #       MCU_endstop object.
-            # NOTE: This is in contrast to "phoming.manual_home",
-            #       which additionally requires a toolhead object.
-            #       It turns out that, if not provided, HomingMove
-            #       will get the main toolhead by lookup and use it.
-            # NOTE: the method is passed "pos", which is the target
+            #       "ProbeEndstopWrapper", a wrapper for the probe's
+            #       MCU_endstop object. There is also "phoming.manual_home",
+            #       which is similar but less convenient.
+            # NOTE: The method is passed "pos", which is the target
             #       XYZE coordinates for the probing move (see notes
             #       above, and the "cmd_PROBE_G38_2" method).
             # NOTE: I had to add a "check_triggered" argument to
             #       "probing_move" for G38.3 to work properly.
-            logging.info("probe_g38 probing with axes: " + str(probe_axes))
-
-            # NOTE: "epos" is "trigpos" from the "homing_move" method.
+            # NOTE: This "epos" is "trigpos" from the "homing_move" method.
             epos = phoming.probing_move(mcu_probe=self.probe.mcu_probe,
                                         pos=pos,
                                         speed=speed,
