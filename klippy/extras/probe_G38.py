@@ -199,6 +199,15 @@ class ProbeG38:
                                     when_not_ready=False,
                                     desc=self.cmd_PROBE_G38_5_help)
 
+        # NOTE: Get the proper ToolHead object.
+        self.toolhead: ToolHead = None
+        self.printer.register_event_handler('klippy:mcu_identify',
+                                            self._handle_mcu_identify)
+
+    def _handle_mcu_identify(self):
+        # NOTE: Get the proper ToolHead object.
+        self.toolhead: ToolHead = self.printer.lookup_object('toolhead')
+
     # Probe command variants
     cmd_PROBE_G38_5_help = "G38.5 Probe away from workpiece, stop on loss of contact."
     def cmd_PROBE_G38_5(self, gcmd):
@@ -222,11 +231,10 @@ class ProbeG38:
 
         # NOTE: Get the toolhead's last position.
         #       This will be updated below.
-        toolhead: ToolHead = self.printer.lookup_object('toolhead')
-        self.last_position = toolhead.get_position()
+        self.last_position = self.toolhead.get_position()
 
         # NOTE: get the name of the active extruder.
-        extruder = toolhead.get_extruder()
+        extruder = self.toolhead.get_extruder()
         active_extruder_name = extruder.name
 
         # NOTE: configure whether te move will be in absolute
@@ -255,7 +263,7 @@ class ProbeG38:
         params = gcmd.get_command_parameters()
         try:
             # Parse XYZ(ABC) axis move coordinates.
-            for pos, axis in enumerate(list(toolhead.axis_map)[:-1]):
+            for pos, axis in enumerate(list(self.toolhead.axis_map)[:-1]):
                 if axis in params:
                     v = float(params[axis])
                     if not self.absolute_coord:
@@ -270,10 +278,10 @@ class ProbeG38:
                 v = float(params['E']) * self.extrude_factor
                 if not self.absolute_coord or not self.absolute_extrude:
                     # value relative to position of last move
-                    self.last_position[toolhead.axis_count] += v
+                    self.last_position[self.toolhead.axis_count] += v
                 else:
                     # value relative to base coordinate position
-                    self.last_position[toolhead.axis_count] = v + self.base_position[toolhead.axis_count]
+                    self.last_position[self.toolhead.axis_count] = v + self.base_position[self.toolhead.axis_count]
                 # NOTE: register which axes are being probed
                 probe_axes.append(active_extruder_name)  # Append "extruderN"
 
@@ -293,7 +301,7 @@ class ProbeG38:
 
         # TODO: should this go here? borrowed code from "smart_effector"
         if self.recovery_time:
-            toolhead.dwell(self.recovery_time)
+            self.toolhead.dwell(self.recovery_time)
 
         # NOTE: my probe works!
         self.probe_g38(pos=self.last_position, speed=self.speed,
@@ -303,8 +311,6 @@ class ProbeG38:
 
     def probe_g38(self, pos, speed, error_out, gcmd: GCodeCommand, trigger_invert, probe_axes=None):
         # NOTE: code copied from "probe._probe".
-
-        toolhead: ToolHead = self.printer.lookup_object('toolhead')
 
         # TODO: rethink if homing is neccessary for homing.
         # curtime = self.printer.get_reactor().monotonic()
@@ -372,7 +378,7 @@ class ProbeG38:
                 raise self.printer.command_error(reason)
 
         # The toolhead's position was set to haltpos in "homing.py" after probing.
-        haltpos = toolhead.get_position()
+        haltpos = self.toolhead.get_position()
         status_prefix = "probe trigger"
         if haltpos == pos:
             # If "haltpos" and "target pos" are equal, then the move was not interrupted,
@@ -381,14 +387,14 @@ class ProbeG38:
 
         logging.info(f"probe_g38 probe ended with status: {status_prefix}")
 
-        if toolhead.axis_count == 3:
+        if self.toolhead.axis_count == 3:
             self.gcode.respond_info(status_prefix + " at x=%.3f y=%.3f z=%.3f e=%.3f" % tuple(epos))
-        elif toolhead.axis_count == 6:
+        elif self.toolhead.axis_count == 6:
             self.gcode.respond_info(status_prefix + " at x=%.3f y=%.3f z=%.3f a=%.3f b=%.3f c=%.3f e=%.3f"
                                     % tuple(epos))
         else:
             # Get Current Position
-            msg = " ".join([k.lower() + "=" + "%.3f" % haltpos[v] for k, v in toolhead.axis_map.items() ])
+            msg = " ".join([k.lower() + "=" + "%.3f" % haltpos[v] for k, v in self.toolhead.axis_map.items() ])
             self.gcode.respond_info(status_prefix + " at " + msg)
             # raise self.printer.command_error(f"Can't respond with info for toolhead.axis_count={toolhead.axis_count}")
 
