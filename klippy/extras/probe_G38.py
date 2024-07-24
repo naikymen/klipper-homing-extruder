@@ -22,9 +22,24 @@ if TYPE_CHECKING:
 import logging
 from . import probe
 
+# Main external probe interface
+class PrinterProbeG38(probe.PrinterProbe):
+    """Subclass of the main PrinterProbe in 'probe.py', using ProbeEndstopWrapperG38 instead.
+    """
+    def __init__(self, config: ConfigWrapper, mcu_probe_name='probe'):
+        self.printer = config.get_printer()
+        self.mcu_probe_name = mcu_probe_name
+        self.mcu_probe = ProbeEndstopWrapperG38(config, mcu_probe_name)
+        self.cmd_helper = probe.ProbeCommandHelper(config, self,
+                                                   self.mcu_probe.query_endstop)
+        self.probe_offsets = probe.ProbeOffsetsHelper(config)
+        self.probe_session = probe.ProbeSessionHelper(config, self.mcu_probe, mcu_probe_name)
 
+# Endstop wrapper that enables probe specific features
 class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
-    """Subclass of ProbeEndstopWrapper, implementing multi-axis probing."""
+    """Subclass of ProbeEndstopWrapper, implementing multi-axis probing.
+    This object is the 'mcu_probe' object elsewhere.
+    """
     def __init__(self, config: ConfigWrapper, mcu_probe_name: str = 'probe'):
 
         # Instantiate the base "ProbeEndstopWrapper" class, as usual.
@@ -32,30 +47,41 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
         # it does not require a name for it.
         super().__init__(config, mcu_probe_name)
 
-        # NOTE: not really needed, its done already by "super()".
-        self.printer = config.get_printer()
+        # NOTE: The super method adds several key objects used here:
+        #       - self.printer
+        #       - self.mcu_probe_name
+        #       - self.mcu_endstop
+
+        # Register probe for endstop querying.
+        self.query_registered = False
+        self.register_query_endstop(name=self.mcu_probe_name, config=config)
 
         # NOTE: recovery stuff, see "probe_prepare" below. Not needed.
         self.recovery_time = config.getfloat('recovery_time', 0.4, minval=0.)
 
-        # NOTE: add XY steppers too, see "_handle_mcu_identify" below.
+        # NOTE: Add XY steppers too, see "_handle_mcu_identify" below.
         self.printer.register_event_handler('klippy:mcu_identify',
                                             self._handle_mcu_identify)
 
     def register_query_endstop(self, name, config):
         """Function used in 'probe_G38_multi' to register the probe endstop for display."""
-        # NOTE: grabbed from "stepper.py" to support querying the probes.
-        # Load the "query_endstops" module.
-        query_endstops = self.printer.load_object(config, 'query_endstops')
-        # Register the endstop there.
-        # NOTE: "self.mcu_endstop" was setup by "super" during init.
-        query_endstops.register_endstop(self.mcu_endstop, name)
+        if not self.query_registered:
+            # NOTE: grabbed from "stepper.py" to support querying the probes.
+            # Load the "query_endstops" module.
+            query_endstops = self.printer.load_object(config, 'query_endstops')
+            # Register the endstop there.
+            # NOTE: "self.mcu_endstop" was setup by "super" during init.
+            query_endstops.register_endstop(self.mcu_endstop, name)
+            # Flag registry.
+            self.query_registered = True
+        else:
+            logging.info("Probe endstop already registered.")
 
     # NOTE: Register XY steppers in the endstop too.
     #       The following includes Z steppers and
     #       extruder steppers.
     def _handle_mcu_identify(self):
-        logging.info("ProbeEndstopWrapperG38: _handle_mcu_identify activated.")
+        logging.info("ProbeEndstopWrapperG38: associating all steppers to probe endstop.")
 
         # NOTE: Register XYZ steppers.
         toolhead: ToolHead = self.printer.lookup_object('toolhead')
@@ -66,8 +92,10 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
             if kin is not None:
                 # NOTE: "kin.get_steppers" returns all "PrinterStepper"/"MCU_stepper" objects in the kinematic.
                 for stepper in kin.get_steppers():
-                    # NOTE: The usual 'xyz' letters are used here, even if they don't mathc the kin's axis names (e.g. ABC).
+                    # NOTE: The usual 'xyz' letters are used here, even if they don't match the kin's axis names (e.g. ABC).
                     if stepper.is_active_axis('x') or stepper.is_active_axis('y') or stepper.is_active_axis('z'):
+                        # NOTE: The "add_stepper" method called here is ultimately
+                        #       from the "TriggerDispatch" class in "mcu.py",
                         self.add_stepper(stepper)
 
         # NOTE: register steppers from all extruders.
@@ -81,18 +109,6 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
                 #       to have the "get_steppers" method. The original MCU_stepper
                 #       object did not, but it has been patched at "stepper.py".
                 self.add_stepper(stepper)
-
-# Main external probe interface
-class PrinterProbeG38(probe.PrinterProbe):
-    """Subclass of PrinterProbe, using ProbeEndstopWrapperG38 instead"""
-    def __init__(self, config: ConfigWrapper, mcu_probe_name='probe'):
-        self.printer = config.get_printer()
-        self.mcu_probe_name = mcu_probe_name
-        self.mcu_probe = ProbeEndstopWrapperG38(config, mcu_probe_name)
-        self.cmd_helper = probe.ProbeCommandHelper(config, self,
-                                                   self.mcu_probe.query_endstop)
-        self.probe_offsets = probe.ProbeOffsetsHelper(config)
-        self.probe_session = probe.ProbeSessionHelper(config, self.mcu_probe, mcu_probe_name)
 
 class ProbeG38:
     """
@@ -120,7 +136,7 @@ class ProbeG38:
         #       it will require all the parameters that they require, plus the ones specific
         #       to this class.
         self.mcu_probe_name = mcu_probe_name
-        self.probe: probe.PrinterProbe = PrinterProbeG38(config=config, mcu_probe_name=self.mcu_probe_name)
+        self.probe = PrinterProbeG38(config=config, mcu_probe_name=self.mcu_probe_name)
         self.printer: ConfigWrapper = config.get_printer()
 
         # NOTE: dummy extrude factor

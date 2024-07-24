@@ -26,7 +26,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
 
         # NOTE: Instantiate probe objects:
         #       -   "ProbeEndstopWrapper": Endstop wrapper that enables probe specific features.
-        self.mcu_probe =probe_G38.ProbeEndstopWrapperG38(config)
+        self.mcu_probe = probe_G38.ProbeEndstopWrapperG38(config)
         #       -   "mcu_probe_name": Readable name for the probe/endstop.
         self.mcu_probe_name ='probe_'+self.probe_name
         #       -   "PrinterProbe"/"PrinterProbeMux": Object registering the GCODE commands for probing.
