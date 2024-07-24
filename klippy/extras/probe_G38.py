@@ -20,23 +20,23 @@ if TYPE_CHECKING:
 # pylint: disable=logging-fstring-interpolation,logging-not-lazy,fixme
 
 import logging
-from . import probe
+from .probe import ProbeCommandHelper, PrinterProbe, ProbeOffsetsHelper, ProbeSessionHelper, ProbeEndstopWrapper, HINT_TIMEOUT
 
 # Main external probe interface
-class PrinterProbeG38(probe.PrinterProbe):
+class PrinterProbeG38(PrinterProbe):
     """Subclass of the main PrinterProbe in 'probe.py', using ProbeEndstopWrapperG38 instead.
     """
     def __init__(self, config: ConfigWrapper, mcu_probe_name='probe'):
         self.printer = config.get_printer()
         self.mcu_probe_name = mcu_probe_name
         self.mcu_probe = ProbeEndstopWrapperG38(config, mcu_probe_name)
-        self.cmd_helper = probe.ProbeCommandHelper(config, self,
-                                                   self.mcu_probe.query_endstop)
-        self.probe_offsets = probe.ProbeOffsetsHelper(config)
-        self.probe_session = probe.ProbeSessionHelper(config, self.mcu_probe, mcu_probe_name)
+        self.cmd_helper = ProbeCommandHelper(config, self,
+                                             self.mcu_probe.query_endstop)
+        self.probe_offsets = ProbeOffsetsHelper(config)
+        self.probe_session = ProbeSessionHelper(config, self.mcu_probe, mcu_probe_name)
 
 # Endstop wrapper that enables probe specific features
-class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
+class ProbeEndstopWrapperG38(ProbeEndstopWrapper):
     """Subclass of ProbeEndstopWrapper, implementing multi-axis probing.
     This object is the 'mcu_probe' object elsewhere.
     """
@@ -345,7 +345,7 @@ class ProbeG38:
             #       can be ignored. Else, the error should be logged with
             #       the "command_error" method, as always.
             if "Timeout during endstop homing" in reason:
-                reason += probe.HINT_TIMEOUT
+                reason += HINT_TIMEOUT
                 if error_out:
                     # NOTE: log the error as usual if it was requested.
                     raise self.printer.command_error(reason)
