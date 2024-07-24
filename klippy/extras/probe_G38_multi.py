@@ -4,13 +4,26 @@
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 
+# Type checking without cyclic import error.
+# See: https://stackoverflow.com/a/39757388
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from ..klippy import Printer
+    from ..kinematics import PrinterExtruder, ExtruderStepper
+    from ..configfile import ConfigWrapper
+    from ..toolhead import ToolHead
+    from ..gcode import GCodeDispatch, GCodeCommand
+    from .homing import PrinterHoming
+    from .gcode_move import GCodeMove
 # pylint: disable=missing-class-docstring,missing-function-docstring,invalid-name,line-too-long,consider-using-f-string
 # pylint: disable=logging-fstring-interpolation,logging-not-lazy,fixme
 
 import logging
-from . import probe, probe_G38
+from .probe import ProbeCommandHelper, PrinterProbe, ProbeOffsetsHelper, ProbeSessionHelper
+from .probe_G38 import ProbeG38, ProbeEndstopWrapperG38
 
-class ProbeG38multi(probe_G38.ProbeG38):
+class ProbeG38multi(ProbeG38):
     """
     ! WARNING EXPERIMENTAL
 
@@ -54,17 +67,10 @@ class ProbeG38multi(probe_G38.ProbeG38):
         self.printer = config.get_printer()
 
         # NOTE: Instantiate probe objects:
-        #       -   "ProbeEndstopWrapper": Endstop wrapper that enables probe specific features.
-        self.mcu_probe = probe_G38.ProbeEndstopWrapperG38(config)
         #       -   "mcu_probe_name": Readable name for the probe/endstop.
         self.mcu_probe_name ='probe_'+self.probe_name
         #       -   "PrinterProbe"/"PrinterProbeMux": Object registering the GCODE commands for probing.
-        self.probe = PrinterProbeMux(config=config,
-                                     mcu_probe=self.mcu_probe,
-                                     mcu_probe_name=self.mcu_probe_name)
-
-        # NOTE: register "mcu_probe" for endstop querying.
-        self.mcu_probe.register_query_endstop(name=self.mcu_probe_name, config=config)
+        self.probe = PrinterProbeG38Mux(config=config, mcu_probe_name=self.mcu_probe_name)
 
         # NOTE: save original probing config logic.
         #       This logic is used at "_home_cmd.send()" in "mcu.py"
@@ -270,7 +276,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
 
         # Get active probe object, which might be the current ProbeG38multi instance,
         # or an instance for another probe pin. It is based on the active extruder name.
-        probe_object: probe_G38.ProbeG38 = self.get_active_probe()
+        probe_object: ProbeG38 = self.get_active_probe()
 
         # Get the probe_g38 method, corresponding to the current probe_object/extruder.
         probe_g38 = probe_object.probe_g38
@@ -376,99 +382,57 @@ class ProbeG38multi(probe_G38.ProbeG38):
                        trigger_invert=trigger_invert,
                        probe_axes=probe_axes)
 
-class PrinterProbeMux(probe.PrinterProbe):
-    def __init__(self, config, mcu_probe, mcu_probe_name='probe'):
-        """
-        This class inherits methods from "probe.PrinterProbe",
-        but the commands are setup as "Mux" instead of "regular"
-        GCODE commands. This is required to setup multiple probes.
-
-        config: ?
-        mcu_probe: this is of "ProbeEndstopWrapper" class, which is a wrapper for "MCU_endstop".
-        """
-
-        # TODO: check if this init can be stripped down.
+class ProbeCommandHelperMux(ProbeCommandHelper):
+    """Subclass of ProbeCommandHelper, muxing all commands.
+    Replacement of PrinterProbeMux."""
+    def __init__(self, config, probe: PrinterProbeG38Mux, query_endstop=None):
         self.printer = config.get_printer()
+        self.probe = probe
+        self.query_endstop = query_endstop
         self.name = config.get_name()
-        self.mcu_probe_name=mcu_probe_name
-        self.mcu_probe = mcu_probe
-        self.speed = config.getfloat('speed', 5.0, above=0.)
-        self.lift_speed = config.getfloat('lift_speed', self.speed, above=0.)
-        self.x_offset = config.getfloat('x_offset', 0.)
-        self.y_offset = config.getfloat('y_offset', 0.)
-        self.z_offset = config.getfloat('z_offset')
-        self.probe_calibrate_z = 0.
-        self.multi_probe_pending = False
-        self.last_state = False
-        self.last_z_result = 0.
-        self.gcode_move = self.printer.load_object(config, "gcode_move")
-
-        # Infer Z position to move to during a probe
-        if config.has_section('stepper_z'):
-            zconfig = config.getsection('stepper_z')
-            self.z_position = zconfig.getfloat('position_min', 0.,
-                                               note_valid=False)
-        else:
-            pconfig = config.getsection('printer')
-            self.z_position = pconfig.getfloat('minimum_z_position', 0.,
-                                               note_valid=False)
-
-        # Multi-sample support (for improved accuracy)
-        self.sample_count = config.getint('samples', 1, minval=1)
-        self.sample_retract_dist = config.getfloat('sample_retract_dist', 2.,
-                                                   above=0.)
-        atypes = {'median': 'median', 'average': 'average'}
-        self.samples_result = config.getchoice('samples_result', atypes,
-                                               'average')
-        self.samples_tolerance = config.getfloat('samples_tolerance', 0.100,
-                                                 minval=0.)
-        self.samples_retries = config.getint('samples_tolerance_retries', 0,
-                                             minval=0)
-
-        # Register z_virtual_endstop pin
-        # TODO: study this to implement probing on any direction.
-        self.printer.lookup_object('pins').register_chip(self.mcu_probe_name, self)
-
-        # Register homing event handlers
-        # TODO: these will not be triggered by extra toolheads, consider updating.
-        self.printer.register_event_handler("homing:homing_move_begin",
-                                            self._handle_homing_move_begin)
-        self.printer.register_event_handler("homing:homing_move_end",
-                                            self._handle_homing_move_end)
-        self.printer.register_event_handler("homing:home_rails_begin",
-                                            self._handle_home_rails_begin)
-        self.printer.register_event_handler("homing:home_rails_end",
-                                            self._handle_home_rails_end)
-        self.printer.register_event_handler("gcode:command_error",
-                                            self._handle_command_error)
 
         # Register PROBE/QUERY_PROBE commands
         self.gcode = self.printer.lookup_object('gcode')
 
         self.gcode.register_mux_command('PROBE', 'PROBE_NAME',
-                                        self.mcu_probe_name,
+                                        self.probe.mcu_probe_name,
                                         self.cmd_PROBE,
                                         desc=self.cmd_PROBE_help)
 
         self.gcode.register_mux_command('QUERY_PROBE', 'PROBE_NAME',
-                                        self.mcu_probe_name,
+                                        self.probe.mcu_probe_name,
                                         self.cmd_QUERY_PROBE,
                                         desc=self.cmd_QUERY_PROBE_help)
 
         self.gcode.register_mux_command('PROBE_CALIBRATE', 'PROBE_NAME',
-                                        self.mcu_probe_name,
+                                        self.probe.mcu_probe_name,
                                         self.cmd_PROBE_CALIBRATE,
                                         desc=self.cmd_PROBE_CALIBRATE_help)
 
         self.gcode.register_mux_command('PROBE_ACCURACY', 'PROBE_NAME',
-                                        self.mcu_probe_name,
+                                        self.probe.mcu_probe_name,
                                         self.cmd_PROBE_ACCURACY,
                                         desc=self.cmd_PROBE_ACCURACY_help)
 
         self.gcode.register_mux_command('Z_OFFSET_APPLY_PROBE', 'PROBE_NAME',
-                                        self.mcu_probe_name,
+                                        self.probe.mcu_probe_name,
                                         self.cmd_Z_OFFSET_APPLY_PROBE,
                                         desc=self.cmd_Z_OFFSET_APPLY_PROBE_help)
+
+# Main external probe interface
+class PrinterProbeG38Mux(PrinterProbe):
+    """Subclass of the main PrinterProbe in 'probe.py'
+    Using ProbeEndstopWrapperG38 and ProbeCommandHelperMux instead.
+    """
+    def __init__(self, config: ConfigWrapper, mcu_probe_name='probe'):
+        self.printer = config.get_printer()
+        self.mcu_probe_name = mcu_probe_name
+        self.mcu_probe = ProbeEndstopWrapperG38(config, mcu_probe_name)
+        self.cmd_helper = ProbeCommandHelperMux(config, self,
+                                                self.mcu_probe.query_endstop)
+        self.probe_offsets = ProbeOffsetsHelper(config)
+        self.probe_session = ProbeSessionHelper(config, self.mcu_probe, mcu_probe_name)
+
 
 def load_config_prefix(config):
     return ProbeG38multi(config)
