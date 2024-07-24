@@ -998,6 +998,13 @@ Visual Examples:
 #adaptive_margin:
 #   An optional margin (in mm) to be added around the bed area used by
 #   the defined print objects when generating an adaptive mesh.
+#scan_overshoot:
+#  The maximum amount of travel (in mm) available outside of the mesh.
+#  For rectangular beds this applies to travel on the X axis, and for round beds
+#  it applies to the entire radius.  The tool must be able to travel the amount
+#  specified outside of the mesh.  This value is used to optimize the travel
+#  path when performing a "rapid scan".  The minimum value that may be specified
+#  is 1.  The default is no overshoot.
 ```
 
 ### [bed_tilt]
@@ -2007,6 +2014,9 @@ Support for eddy current inductive probes. One may define this section
 sensor_type: ldc1612
 #   The sensor chip used to perform eddy current measurements. This
 #   parameter must be provided and must be set to ldc1612.
+#intb_pin:
+#   MCU gpio pin connected to the ldc1612 sensor's INTB pin (if
+#   available). The default is to not use the INTB pin.
 #z_offset:
 #   The nominal distance (in mm) between the nozzle and bed that a
 #   probing attempt should stop at. This parameter must be provided.
@@ -2389,6 +2399,65 @@ temperature sensors that are reported via the M105 command.
 #gcode_id:
 #   See the "heater_generic" section for the definition of this
 #   parameter.
+```
+
+### [temperature_probe]
+
+Reports probe coil temperature.  Includes optional thermal drift
+calibration for eddy current based probes.   A `[temperature_probe]`
+section may be linked to a `[probe_eddy_current]` by using the same
+postfix for both sections.
+
+```
+[temperature_probe my_probe]
+#sensor_type:
+#sensor_pin:
+#min_temp:
+#max_temp:
+#   Temperature sensor configuration.
+#   See the "extruder" section for the definition of the above
+#   parameters.
+#smooth_time:
+#   A time value (in seconds) over which temperature measurements will
+#   be smoothed to reduce the impact of measurement noise. The default
+#   is 2.0 seconds.
+#gcode_id:
+#   See the "heater_generic" section for the definition of this
+#   parameter.
+#speed:
+#   The travel speed [mm/s] for xy moves during calibration.  Default
+#   is the speed defined by the probe.
+#horizontal_move_z:
+#   The z distance [mm] from the bed at which xy moves will occur
+#   during calibration. Default is 2mm.
+#resting_z:
+#   The z distance [mm] from the bed at which the tool will rest
+#   to heat the probe coil during calibration.  Default is .4mm
+#calibration_position:
+#   The X, Y, Z position where the tool should be moved when
+#   probe drift calibration initializes.  This is the location
+#   where the first manual probe will occur.  If omitted, the
+#   default behavior is not to move the tool prior to the first
+#   manual probe.
+#calibration_bed_temp:
+#   The maximum safe bed temperature (in C) used to heat the probe
+#   during probe drift calibration.  When set, the calibration
+#   procedure will turn on the bed after the first sample is
+#   taken.  When the calibration procedure is complete the bed
+#   temperature will be set to zero.  When omitted the default
+#   behavior is not to set the bed temperature.
+#calibration_extruder_temp:
+#   The extruder temperature (in C) set probe during drift calibration.
+#   When this option is supplied the procedure will wait for until the
+#   specified temperature is reached before requesting the first manual
+#   probe.  When the calibration procedure is complete the extruder
+#   temperature will be set to 0.  When omitted the default behavior is
+#   not to set the extruder temperature.
+#extruder_heating_z: 50.
+#   The Z location where extruder heating will occur if the
+#   "calibration_extruder_temp" option is set.  Its recommended to heat
+#   the extruder some distance from the bed to minimize its impact on
+#   the probe coil temperature.  The default is 50.
 ```
 
 ## Temperature sensors
@@ -3327,11 +3396,8 @@ run_current:
 #high_velocity_threshold:
 #   The velocity (in mm/s) to set the TMC driver internal "high
 #   velocity" threshold (THIGH) to. This is typically used to disable
-#   the "CoolStep" feature at high speeds. Important - if
-#   high_velocity_threshold is set and "sensorless homing" is used,
-#   then one must ensure that the homing speed is below the high
-#   velocity threshold! The default is to not set a TMC "high
-#   velocity" threshold.
+#   the "CoolStep" feature at high speeds. The default is to not set a
+#   TMC "high velocity" threshold.
 #driver_MSLUT0: 2863314260
 #driver_MSLUT1: 1251300522
 #driver_MSLUT2: 608774441
@@ -3646,11 +3712,8 @@ run_current:
 #high_velocity_threshold:
 #   The velocity (in mm/s) to set the TMC driver internal "high
 #   velocity" threshold (THIGH) to. This is typically used to disable
-#   the "CoolStep" feature at high speeds. Important - if
-#   high_velocity_threshold is set and "sensorless homing" is used,
-#   then one must ensure that the homing speed is below the high
-#   velocity threshold! The default is to not set a TMC "high
-#   velocity" threshold.
+#   the "CoolStep" feature at high speeds. The default is to not set a
+#   TMC "high velocity" threshold.
 #driver_MSLUT0: 2863314260
 #driver_MSLUT1: 1251300522
 #driver_MSLUT2: 608774441
@@ -3782,11 +3845,8 @@ run_current:
 #high_velocity_threshold:
 #   The velocity (in mm/s) to set the TMC driver internal "high
 #   velocity" threshold (THIGH) to. This is typically used to disable
-#   the "CoolStep" feature at high speeds. Important - if
-#   high_velocity_threshold is set and "sensorless homing" is used,
-#   then one must ensure that the homing speed is below the high
-#   velocity threshold! The default is to not set a TMC "high
-#   velocity" threshold.
+#   the "CoolStep" feature at high speeds. The default is to not set a
+#   TMC "high velocity" threshold.
 #driver_MSLUT0: 2863314260
 #driver_MSLUT1: 1251300522
 #driver_MSLUT2: 608774441

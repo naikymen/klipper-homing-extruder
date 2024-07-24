@@ -259,11 +259,14 @@ class HomingMove:
         move_end_print_time = self.toolhead.get_last_move_time()
         for mcu_endstop, name in self.endstops:
             # NOTE: calls the "home_wait" method from "MCU_endstop".
-            trigger_time = mcu_endstop.home_wait(move_end_print_time)
+            try:
+                trigger_time = mcu_endstop.home_wait(move_end_print_time)
+            except self.printer.command_error as e:
+                if error is None:
+                    error = "Error during homing %s: %s" % (name, str(e))
+                continue
             if trigger_time > 0.:
                 trigger_times[name] = trigger_time
-            elif trigger_time < 0. and error is None:
-                error = "Communication timeout during homing %s" % (name,)
             elif check_triggered and error is None:
                 error = "No trigger on %s after full movement" % (name,)
                 # If the trigger time is exactly "0" then the probe was not triggered during the move.
