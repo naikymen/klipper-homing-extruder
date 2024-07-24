@@ -172,7 +172,7 @@ class HomingMove:
         """Called by the 'home_rails' or 'manual_home' methods."""
         # Notify start of homing/probing move
         self.printer.send_event(self.toolhead.event_prefix + "homing:homing_move_begin", self)
-        logging.info(f"homing.homing_move: homing move called, starting setup.")
+        logging.info("homing.homing_move: homing move called, starting setup.")
 
         # Note start location
         self.toolhead.flush_step_generation()
@@ -210,7 +210,7 @@ class HomingMove:
         # Start endstop checking
         print_time = self.toolhead.get_last_move_time()
         endstop_triggers = []
-        logging.info(f"homing.homing_move: homing move start.")
+        logging.info("homing.homing_move: homing move start.")
         for mcu_endstop, name in self.endstops:
             # NOTE: this calls "toolhead.get_position" to get "startpos".
             rest_time = self._calc_endstop_rate(mcu_endstop=mcu_endstop,
@@ -238,7 +238,7 @@ class HomingMove:
         self.toolhead.dwell(HOMING_START_DELAY)
 
         # Issue move
-        logging.info(f"homing.homing_move: issuing drip move.")
+        logging.info(f"homing.homing_move: issuing drip move at speed: {speed}")
         error = None
         try:
             # NOTE: Before the "drip" commit, the following command
@@ -253,7 +253,7 @@ class HomingMove:
             error = "Error during homing move: %s" % (str(e),)
 
         # Wait for endstops to trigger
-        logging.info(f"homing.homing_move: waiting for endstop triggers.")
+        logging.info("homing.homing_move: waiting for endstop triggers.")
         trigger_times = {}
         # NOTE: Probably gets the time just after the last move.
         move_end_print_time = self.toolhead.get_last_move_time()
@@ -277,7 +277,7 @@ class HomingMove:
         #       and calls "trapq_finalize_moves").
         self.toolhead.flush_step_generation()
 
-        logging.info(f"homing.homing_move: calculating haltpos.")
+        logging.info("homing.homing_move: calculating haltpos.")
         for sp in self.stepper_positions:
             # NOTE: get the time of endstop triggering
             tt = trigger_times.get(sp.endstop_name, move_end_print_time)
@@ -333,7 +333,7 @@ class HomingMove:
         #       The fourt element comes from "newpos_e" in the call to
         #       "toolhead.set_position" above. The first element is the corrected
         #       "halt" position.
-        logging.info(f"homing.homing_move: setting position.")
+        logging.info("homing.homing_move: setting position.")
         self.toolhead.set_position(haltpos)
 
         # Signal homing/probing move complete
@@ -356,7 +356,7 @@ class HomingMove:
 
         # NOTE: returns "trigpos", which is the position of the toolhead
         #       when the endstop triggered.
-        logging.info(f"homing.homing_move: homing move end.")
+        logging.info("homing.homing_move: homing move end.")
         return trigpos
 
     def calc_halt_kin_spos(self, extruder_steppers):

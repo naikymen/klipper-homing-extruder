@@ -11,6 +11,32 @@ import logging
 from . import probe, probe_G38
 
 class ProbeG38multi(probe_G38.ProbeG38):
+    """
+    ! WARNING EXPERIMENTAL
+
+    This class registers G38 commands to probe in general directions, and supports multiple probe endstops.
+
+    The module respects the coordinate system set in gcode_move (i.e. absolute or relative mode).
+
+    From LinuxCNC: https://linuxcnc.org/docs/2.6/html/gcode/gcode.html
+        - G38.2 - (True/True) probe toward workpiece, stop on contact, signal error if failure.
+        - G38.3 - (True/False) probe toward workpiece, stop on contact.
+        - G38.4 - (False/True) probe away from workpiece, stop on loss of contact, signal error if failure.
+        - G38.5 - (False/False) probe away from workpiece, stop on loss of contact.
+
+    In order to support multiple endstops, new pseudo-GCODE commands were added to select the probe.
+    These are the "MULTIPROBE" commands below.
+
+    This class also registers the regular G38 commands, which will use the probe endstop whose name
+    matches the name of the active extruder.
+
+    This feature relies on a great patch for the HomingMove class at "homing.py",
+    and small patches in the ToolHead class at "toolhead.py", which
+    enable support for extruder homing/probing. These are, broadly:
+      - Added logic for calculating the extruder's kin_spos/haltpos/trigpos/etc.
+      - Added logic to handle the active extruder in "check_no_movement".
+      - Added "set_position_e" to the toolhead.
+    """
     def __init__(self, config):
         # NOTE: because the "config" is passed to PrinterProbe and ProbeEndstopWrapper,
         #       it will require all the parameters that they require, plus the ones specific
@@ -244,7 +270,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
 
         # Get active probe object, which might be the current ProbeG38multi instance,
         # or an instance for another probe pin. It is based on the active extruder name.
-        probe_object = self.get_active_probe()
+        probe_object: probe_G38.ProbeG38 = self.get_active_probe()
 
         # Get the probe_g38 method, corresponding to the current probe_object/extruder.
         probe_g38 = probe_object.probe_g38
