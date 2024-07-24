@@ -287,12 +287,13 @@ class ProbeG38:
                 probe_axes.append(active_extruder_name)  # Append "extruderN"
 
             # Parse feedrate
+            speed = self.speed  # Default
             if 'F' in params:
                 gcode_speed = float(params['F'])
                 if gcode_speed <= 0.:
                     raise gcmd.error("Invalid speed in '%s'"
                                      % (gcmd.get_commandline(),))
-                self.speed = gcode_speed * self.speed_factor
+                speed = gcode_speed * self.speed_factor
 
         except ValueError as e:
             raise gcmd.error(f"ProbeG38: Unable to parse move {gcmd.get_commandline()} with exception: {str(e)}")
@@ -305,7 +306,7 @@ class ProbeG38:
             self.toolhead.dwell(self.recovery_time)
 
         # NOTE: my probe works!
-        self.probe_g38(pos=self.last_position, speed=self.speed,
+        self.probe_g38(pos=self.last_position, speed=speed,
                        error_out=error_out, gcmd=gcmd,
                        trigger_invert=trigger_invert,
                        probe_axes=probe_axes)

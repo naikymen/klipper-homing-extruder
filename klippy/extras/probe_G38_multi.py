@@ -48,6 +48,9 @@ class ProbeG38multi(probe_G38.ProbeG38):
         # NOTE: dummy extrude factor
         self.extrude_factor = 1.0
 
+        # NOTE: Dummy objects for the G1 command parser
+        self.speed_factor = 1.0
+
         self.printer = config.get_printer()
 
         # NOTE: Instantiate probe objects:
@@ -210,9 +213,6 @@ class ProbeG38multi(probe_G38.ProbeG38):
         #       the absolute move, ¿relative to it? Weird...
         base_position = gcode_move.base_position
 
-        # NOTE: Dummy objects for the G1 command parser
-        speed_factor = 1
-
         # NOTE: probing axes list. This is populated with strings matching
         #       stepper names, coming from the axes involved in the probing
         #       move. For example, a probing move to X10,Y10 will have
@@ -256,7 +256,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
                 if gcode_speed <= 0.:
                     raise gcmd.error("Invalid speed in '%s'"
                                      % (gcmd.get_commandline(),))
-                speed = gcode_speed * speed_factor
+                speed = gcode_speed * self.speed_factor
 
         except ValueError as e:
             raise gcmd.error(f"ProbeG38: Unable to parse move {gcmd.get_commandline()} with exception: {str(e)}")
