@@ -66,6 +66,7 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
     def register_query_endstop(self, name, config):
         """Function used in 'probe_G38_multi' to register the probe endstop for display."""
         if not self.query_registered:
+            logging.info(f"Registering probe endstop {name}.")
             # NOTE: grabbed from "stepper.py" to support querying the probes.
             # Load the "query_endstops" module.
             query_endstops = self.printer.load_object(config, 'query_endstops')
