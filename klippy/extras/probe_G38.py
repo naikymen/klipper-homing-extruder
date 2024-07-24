@@ -148,7 +148,6 @@ class ProbeG38:
         self.absolute_coord: bool = None
         self.absolute_extrude: bool = None
         self.base_position: list = None
-        self.speed_factor: float = None
 
         # NOTE: save original probing config logic.
         #       This logic is used at "_home_cmd.send()" in "mcu.py"
@@ -168,9 +167,6 @@ class ProbeG38:
 
         # NOTE: Dummy position vector, overriden later.
         self.last_position = [None, None, None, None]
-
-        # NOTE: default probing speed
-        self.speed = 100
 
         # NOTE: recovery stuff
         self.recovery_time = config.getfloat('recovery_time', 0.4, minval=0.)
@@ -202,12 +198,14 @@ class ProbeG38:
 
         # NOTE: Get the proper ToolHead object.
         self.toolhead: ToolHead = None
+        self.gcode_move: GCodeMove = None
         self.printer.register_event_handler('klippy:mcu_identify',
                                             self._handle_mcu_identify)
 
     def _handle_mcu_identify(self):
         # NOTE: Get the proper ToolHead object.
         self.toolhead: ToolHead = self.printer.lookup_object('toolhead')
+        self.gcode_move: GCodeMove = self.printer.lookup_object("gcode_move")
 
     # Probe command variants
     cmd_PROBE_G38_5_help = "G38.5 Probe away from workpiece, stop on loss of contact."
@@ -240,16 +238,12 @@ class ProbeG38:
 
         # NOTE: configure whether te move will be in absolute
         #       or relative coordinates. Respect the G90/G91 setting.
-        gcode_move: GCodeMove = self.printer.lookup_object('gcode_move')
-        self.absolute_coord = gcode_move.absolute_coord
-        self.absolute_extrude = gcode_move.absolute_extrude
+        self.absolute_coord = self.gcode_move.absolute_coord
+        self.absolute_extrude = self.gcode_move.absolute_extrude
 
         # NOTE: also get the "base position". This is required to compute
         #       the absolute move, ¿relative to it? Weird...
-        self.base_position = gcode_move.base_position
-
-        # NOTE: Dummy objects for the G1 command parser
-        self.speed_factor = 1.0
+        self.base_position = self.gcode_move.base_position
 
         # NOTE: probing axes list. This is populated with strings matching
         #       stepper names, coming from the axes involved in the probing
@@ -287,19 +281,19 @@ class ProbeG38:
                 probe_axes.append(active_extruder_name)  # Append "extruderN"
 
             # Parse feedrate
-            speed = self.speed  # Default
+            speed = self.gcode_move.speed  # Default to the main speed (with speed factor applied).
             if 'F' in params:
                 gcode_speed = float(params['F'])
                 if gcode_speed <= 0.:
                     raise gcmd.error("Invalid speed in '%s'"
                                      % (gcmd.get_commandline(),))
-                speed = gcode_speed * self.speed_factor
+                speed = gcode_speed * self.gcode_move.speed_factor
 
         except ValueError as e:
             raise gcmd.error(f"ProbeG38: Unable to parse move {gcmd.get_commandline()} with exception: {str(e)}")
 
         # NOTE: "move_with_transform" is just "toolhead.move":
-        # self.move_with_transform(self.last_position, self.speed)
+        # self.move_with_transform(self.last_position, self.gcode_move.speed)
 
         # TODO: should this go here? borrowed code from "smart_effector"
         if self.recovery_time:
