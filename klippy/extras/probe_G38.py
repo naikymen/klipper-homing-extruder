@@ -30,8 +30,12 @@ class PrinterProbeG38(PrinterProbe):
         self.printer = config.get_printer()
         self.mcu_probe_name = mcu_probe_name
         self.mcu_probe = ProbeEndstopWrapperG38(config, mcu_probe_name)
-        self.cmd_helper = ProbeCommandHelper(config, self,
-                                             self.mcu_probe.query_endstop)
+        if config.getboolean('define_probe_commands', False):
+            logging.info(f"Defining the standard PROBE commands with probe '{self.mcu_probe_name}'.")
+            self.cmd_helper = ProbeCommandHelper(config, self,
+                                                 self.mcu_probe.query_endstop)
+        else:
+            logging.info(f"Skipped definition of standard PROBE commands with probe '{self.mcu_probe_name}'.")
         self.probe_offsets = ProbeOffsetsHelper(config)
         self.probe_session = ProbeSessionHelper(config, self.mcu_probe, mcu_probe_name)
 
@@ -82,7 +86,7 @@ class ProbeEndstopWrapperG38(ProbeEndstopWrapper):
     #       The following includes Z steppers and
     #       extruder steppers.
     def _handle_mcu_identify(self):
-        logging.info("ProbeEndstopWrapperG38: associating all steppers to probe endstop.")
+        logging.info(f"ProbeEndstopWrapperG38: associating all steppers to probe endstop '{self.mcu_probe_name}'.")
 
         # NOTE: Register XYZ steppers.
         toolhead: ToolHead = self.printer.lookup_object('toolhead')

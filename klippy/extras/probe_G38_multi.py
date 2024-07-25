@@ -160,41 +160,50 @@ class ProbeG38multi(ProbeG38):
         super().cmd_PROBE_G38_2(gcmd, error_out=error_out, trigger_invert=trigger_invert)
 
 class ProbeCommandHelperMux(ProbeCommandHelper):
-    """Subclass of ProbeCommandHelper, muxing all commands.
-    Replacement of PrinterProbeMux."""
+    """Subclass of ProbeCommandHelper, 'muxing' all probe commands.
+    All commands here are MUX-type, and are pos-fixed with '_MUX',
+    to distinguish them from the 'regular' probe commands.
+    """
     def __init__(self, config, probe: PrinterProbeG38Mux, query_endstop=None):
         self.printer = config.get_printer()
         self.probe = probe
         self.query_endstop = query_endstop
         self.name = config.get_name()
-
-        # Register PROBE/QUERY_PROBE commands
         self.gcode = self.printer.lookup_object('gcode')
 
-        self.gcode.register_mux_command('PROBE', 'PROBE_NAME',
+        # Register PROBE/QUERY_PROBE commands
+
+        self.gcode.register_mux_command('PROBE_MUX', 'PROBE_NAME',
                                         self.probe.mcu_probe_name,
                                         self.cmd_PROBE,
                                         desc=self.cmd_PROBE_help)
 
-        self.gcode.register_mux_command('QUERY_PROBE', 'PROBE_NAME',
+        self.gcode.register_mux_command('QUERY_PROBE_MUX', 'PROBE_NAME',
                                         self.probe.mcu_probe_name,
                                         self.cmd_QUERY_PROBE,
                                         desc=self.cmd_QUERY_PROBE_help)
 
-        self.gcode.register_mux_command('PROBE_CALIBRATE', 'PROBE_NAME',
+        self.gcode.register_mux_command('PROBE_CALIBRATE_MUX', 'PROBE_NAME',
                                         self.probe.mcu_probe_name,
                                         self.cmd_PROBE_CALIBRATE,
                                         desc=self.cmd_PROBE_CALIBRATE_help)
 
-        self.gcode.register_mux_command('PROBE_ACCURACY', 'PROBE_NAME',
+        self.gcode.register_mux_command('PROBE_ACCURACY_MUX', 'PROBE_NAME',
                                         self.probe.mcu_probe_name,
                                         self.cmd_PROBE_ACCURACY,
                                         desc=self.cmd_PROBE_ACCURACY_help)
 
-        self.gcode.register_mux_command('Z_OFFSET_APPLY_PROBE', 'PROBE_NAME',
+        self.gcode.register_mux_command('Z_OFFSET_APPLY_PROBE_MUX', 'PROBE_NAME',
                                         self.probe.mcu_probe_name,
                                         self.cmd_Z_OFFSET_APPLY_PROBE,
                                         desc=self.cmd_Z_OFFSET_APPLY_PROBE_help)
+
+    # Override the descriptions.
+    cmd_QUERY_PROBE_help = "MUX version of the 'QUERY_PROBE' command. Return the status of the z-probe. Use with PROBE_NAME argument."
+    cmd_PROBE_help = "MUX version of the 'PROBE' command. Probe Z-height at current XY position. Use with PROBE_NAME argument."
+    cmd_PROBE_CALIBRATE_help = "MUX version of the 'PROBE_CALIBRATE' command. Calibrate the probe's z_offset. Use with PROBE_NAME argument."
+    cmd_PROBE_ACCURACY_help = "MUX version of the 'PROBE_ACCURACY' command. Probe Z-height accuracy at current XY position. Use with PROBE_NAME argument."
+    cmd_Z_OFFSET_APPLY_PROBE_help = "MUX version of the 'Z_OFFSET_APPLY_PROBE' command. Adjust the probe's z_offset. Use with PROBE_NAME argument."
 
 # Main external probe interface
 class PrinterProbeG38Mux(PrinterProbe):
@@ -207,6 +216,12 @@ class PrinterProbeG38Mux(PrinterProbe):
         self.mcu_probe = ProbeEndstopWrapperG38(config, mcu_probe_name)
         self.cmd_helper = ProbeCommandHelperMux(config, self,
                                                 self.mcu_probe.query_endstop)
+        if config.getboolean('define_probe_commands', False):
+            logging.info(f"Defining the standard PROBE commands with probe '{self.mcu_probe_name}'.")
+            self.cmd_helper = ProbeCommandHelper(config, self,
+                                                 self.mcu_probe.query_endstop)
+        else:
+            logging.info(f"Skipped definition of standard PROBE commands with probe '{self.mcu_probe_name}'.")
         self.probe_offsets = ProbeOffsetsHelper(config)
         self.probe_session = ProbeSessionHelper(config, self.mcu_probe, mcu_probe_name)
 
