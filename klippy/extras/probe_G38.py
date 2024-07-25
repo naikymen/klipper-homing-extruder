@@ -137,7 +137,7 @@ class ProbeG38:
         #       it will require all the parameters that they require, plus the ones specific
         #       to this class.
         self.mcu_probe_name = mcu_probe_name
-        self.probe = PrinterProbeG38(config=config, mcu_probe_name=self.mcu_probe_name)
+        self.probe = self.setup_probe(config)
         self.printer: ConfigWrapper = config.get_printer()
 
         # NOTE: dummy extrude factor
@@ -173,7 +173,23 @@ class ProbeG38:
 
         # NOTE: Register commands
         self.gcode: GCodeDispatch = self.printer.lookup_object('gcode')
+        self.register_commands()
 
+        # NOTE: Get the proper ToolHead object.
+        self.toolhead: ToolHead = None
+        self.gcode_move: GCodeMove = None
+        self.printer.register_event_handler('klippy:mcu_identify',
+                                            self._handle_mcu_identify)
+
+    def setup_probe(self, config):
+        """"Instantiate PrinterProbeG38 object.
+        Registers the commands for regular probing.
+        """
+        logging.info(f"Configuring G38.n commands for probe '{self.mcu_probe_name}'.")
+        return PrinterProbeG38(config=config, mcu_probe_name=self.mcu_probe_name)
+
+    def register_commands(self):
+        """Register CNC-style probing commands."""
         # NOTE: From LinuxCNC: https://linuxcnc.org/docs/2.6/html/gcode/gcode.html
         #       - G38.2 - Probe toward workpiece, stop on contact, signal error if failure.
         self.gcode.register_command("G38.2",
@@ -195,12 +211,6 @@ class ProbeG38:
                                     self.cmd_PROBE_G38_5,
                                     when_not_ready=False,
                                     desc=self.cmd_PROBE_G38_5_help)
-
-        # NOTE: Get the proper ToolHead object.
-        self.toolhead: ToolHead = None
-        self.gcode_move: GCodeMove = None
-        self.printer.register_event_handler('klippy:mcu_identify',
-                                            self._handle_mcu_identify)
 
     def _handle_mcu_identify(self):
         # NOTE: Get the proper ToolHead object.
