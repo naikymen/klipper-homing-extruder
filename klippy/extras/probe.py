@@ -217,7 +217,9 @@ class HomingViaProbeHelper:
     def _handle_mcu_identify(self):
         kin = self.printer.lookup_object('toolhead').get_kinematics()
         for stepper in kin.get_steppers():
+            # MCU_stepper
             if stepper.is_active_axis('z'):
+                logging.info(f"Registering stepper '{stepper._name}' in probe '{self.mcu_probe_name}'.")
                 self.mcu_probe.add_stepper(stepper)
     def _handle_homing_move_begin(self, hmove):
         if self.mcu_probe in hmove.get_mcu_endstops():
@@ -367,7 +369,7 @@ class ProbeSessionHelper:
             self._probe_state_error()
         params = self.get_probe_params(gcmd)
         toolhead: ToolHead = self.printer.lookup_object('toolhead')
-        z_idx = toolhead.get_axes_idxs("Z")
+        z_idx = toolhead.get_axes_idxs("Z")[0]
         th_pos = toolhead.get_position()
         probexy = toolhead.get_axes(th_pos, "XY")
         retries = 0
@@ -565,8 +567,10 @@ class ProbeEndstopWrapper:
         self.deactivate_gcode = gcode_macro.load_template(
             config, 'deactivate_gcode', '')
         # Create an "endstop" object to handle the probe pin
+        pin = config.get('pin')
+        logging.info(f"Setting endstop for '{mcu_probe_name}' using piun '{pin}'.")
         ppins = self.printer.lookup_object('pins')
-        self.mcu_endstop = ppins.setup_pin('endstop', config.get('pin'))
+        self.mcu_endstop = ppins.setup_pin('endstop', pin)
         # Wrappers
         self.get_mcu = self.mcu_endstop.get_mcu
         self.add_stepper = self.mcu_endstop.add_stepper
