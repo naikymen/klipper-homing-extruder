@@ -12,6 +12,8 @@ if TYPE_CHECKING:
     from extras.homing import Homing
     from ..configfile import ConfigWrapper
     from ..toolhead import ToolHead
+# pylint: disable=missing-class-docstring,missing-function-docstring,invalid-name,line-too-long,consider-using-f-string,multiple-imports,wrong-import-position
+# pylint: disable=logging-fstring-interpolation,logging-not-lazy,fixme
 
 import math, logging
 import stepper, chelper
@@ -24,7 +26,7 @@ class ExtruderStepper:
         self.config_pa = config.getfloat('pressure_advance', 0., minval=0.)
         self.config_smooth_time = config.getfloat(
                 'pressure_advance_smooth_time', 0.040, above=0., maxval=.200)
-        
+
         # Setup stepper
         # NOTE: In the manual_stepper class, the "rail" is defined
         #       either from PrinterRail or PrinterStepper. The first
@@ -42,7 +44,7 @@ class ExtruderStepper:
             self.rail = stepper.PrinterStepper(config)  # MCU_stepper
             self.steppers = [self.rail]                 # [MCU_stepper]
         # NOTE: "steppers" from PrinterRail are interanlly defined from PrinterStepper,
-        #       and thus should be equivalent. An exception is the "get_steppers" 
+        #       and thus should be equivalent. An exception is the "get_steppers"
         #       method, which the MCU_stepper object returned "PrinterStepper" does
         #       not have, but the PrinterRail does. This has been patched.
         self.stepper = self.steppers[0]
@@ -53,17 +55,17 @@ class ExtruderStepper:
         # NOTE: Setup attributes for limit checks, useful for syringe extruders.
         # TODO: Check if this works as expected for extruder limit checking.
         self.limits = [(1.0, -1.0)]
-        # NOTE: These values are replaced by "self._handle_connect" 
+        # NOTE: These values are replaced by "self._handle_connect"
         #       if the stepper can be homed.
         self.axes_min, self.axes_max = None, None
 
         # Register a handler for turning off the steppers.
         self.printer.register_event_handler("stepper_enable:motor_off",
                                             self._motor_off)
-        
+
         ffi_main, ffi_lib = chelper.get_ffi()
         self.sk_extruder = ffi_main.gc(ffi_lib.extruder_stepper_alloc(),
-                                       ffi_lib.free)
+                                       ffi_lib.extruder_stepper_free)
         self.stepper.set_stepper_kinematics(self.sk_extruder)
         self.motion_queue = None
         # Register commands
@@ -100,7 +102,7 @@ class ExtruderStepper:
         # NOTE: The effect is that move checks will never pass, and an error
         #       indicating "homing is needed" will end up being raised.
         self.limits = [(1.0, -1.0)]
-    
+
     def get_status(self, eventtime):
 
         status = {'pressure_advance': self.pressure_advance,
@@ -121,12 +123,12 @@ class ExtruderStepper:
                 'axis_maximum': self.axes_max
             }
         return result
-        
-    
+
+
     def find_past_position(self, print_time):
         mcu_pos = self.stepper.get_past_mcu_position(print_time)
         return self.stepper.mcu_to_commanded_position(mcu_pos)
-    
+
     def sync_to_extruder(self, extruder_name):
         # NOTE: from the following I guess that the
         #       "SYNC_STEPPER_TO_EXTRUDER" and "SYNC_EXTRUDER_MOTION"
@@ -157,14 +159,14 @@ class ExtruderStepper:
                 self._check_endstops(move)
         else:
             logging.info(f"extruder_stepper.check_move_limits: E stepper not home-able, skipping check on move ending on epos={epos}")
-        
+
     def _check_endstops(self, move):
         """ExtruderStepper version of _check_endstops in toolhead.py"""
 
         # NOTE: Software limit checks, borrowed from "cartesian.py".
         logging.info(f"extruder_stepper._check_endstops: move limit check triggered.")
         end_pos = move.end_pos[-1]
-        
+
         # NOTE: Check if the extruder move is out of bounds.
         if (move.axes_d[-1] and (end_pos < self.limits[0][0] or end_pos > self.limits[0][1])):
             # NOTE: The move is not allowed, check if this is due to unhomed axis.
@@ -177,13 +179,13 @@ class ExtruderStepper:
         else:
             # NOTE: Everything seems fine.
             logging.info(f"extruder_stepper._check_endstops: The extruder's move to {end_pos} on axis {len(move.end_pos)} checks out.")
-    
+
     def set_position(self, newpos_e, homing_e=False, print_time=None):
         """ExtruderStepper version of set_position in toolhead.py"""
         logging.info(f"ExtruderStepper.set_position: setting E to newpos={newpos_e}.")
 
         # NOTE: The following calls PrinterRail.set_position, which
-        #       calls set_position on each of the MCU_stepper objects 
+        #       calls set_position on each of the MCU_stepper objects
         #       in each PrinterRail.
         #       It eventually calls "itersolve_set_position".
         self.rail.set_position([newpos_e, 0., 0.])
@@ -196,7 +198,7 @@ class ExtruderStepper:
             #       now on.
             logging.info(f"ExtruderStepper: setting limits={self.rail.get_range()} on stepper: {self.rail.get_name()}")
             self.limits[0] = self.rail.get_range()
-    
+
     def _set_pressure_advance(self, pressure_advance, smooth_time):
         old_smooth_time = self.pressure_advance_smooth_time
         if not self.pressure_advance:
@@ -205,11 +207,14 @@ class ExtruderStepper:
         if not pressure_advance:
             new_smooth_time = 0.
         toolhead = self.printer.lookup_object("toolhead")
-        toolhead.note_step_generation_scan_time(new_smooth_time * .5,
-                                                old_delay=old_smooth_time * .5)
+        if new_smooth_time != old_smooth_time:
+            toolhead.note_step_generation_scan_time(
+                    new_smooth_time * .5, old_delay=old_smooth_time * .5)
         ffi_main, ffi_lib = chelper.get_ffi()
         espa = ffi_lib.extruder_set_pressure_advance
-        espa(self.sk_extruder, pressure_advance, new_smooth_time)
+        toolhead.register_lookahead_callback(
+            lambda print_time: espa(self.sk_extruder, print_time,
+                                    pressure_advance, new_smooth_time))
         self.pressure_advance = pressure_advance
         self.pressure_advance_smooth_time = smooth_time
     cmd_SET_PRESSURE_ADVANCE_help = "Set pressure advance parameters"
@@ -258,13 +263,13 @@ class ExtruderStepper:
     cmd_SYNC_EXTRUDER_MOTION_help = "Set extruder stepper motion queue"
     def cmd_SYNC_EXTRUDER_MOTION(self, gcmd):
         """
-        This command will cause the stepper specified by EXTRUDER (as defined in 
-        an [extruder] or [extruder_stepper] config section) to become synchronized 
-        to the movement of an extruder specified by MOTION_QUEUE (as defined in an 
+        This command will cause the stepper specified by EXTRUDER (as defined in
+        an [extruder] or [extruder_stepper] config section) to become synchronized
+        to the movement of an extruder specified by MOTION_QUEUE (as defined in an
         [extruder] config section).
-        If MOTION_QUEUE is an empty string then the stepper will be desynchronized 
+        If MOTION_QUEUE is an empty string then the stepper will be desynchronized
         from all extruder movement.
-        
+
         Usage: SYNC_EXTRUDER_MOTION EXTRUDER=<name> MOTION_QUEUE=<name>
         """
         ename = gcmd.get('MOTION_QUEUE')
@@ -279,7 +284,7 @@ class PrinterExtruder:
         self.printer = config.get_printer()
         self.name = config.get_name()
         self.last_position = 0.
-        
+
         # Setup hotend heater
         pheaters = self.printer.load_object(config, 'heaters')
         gcode_id = 'T%d' % (extruder_num,)
@@ -317,14 +322,14 @@ class PrinterExtruder:
         #       be equal to the amount of axes in the toolhead,
         #       either XYZ=3 or XYZABC=6.
         self.axis_idx = toolhead.axis_count
-        
+
         # Setup extruder trapq (trapezoidal motion queue)
         ffi_main, ffi_lib = chelper.get_ffi()
         self.trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)
         self.trapq_append = ffi_lib.trapq_append
         self.trapq_finalize_moves = ffi_lib.trapq_finalize_moves
         self.trapq_set_position = ffi_lib.trapq_set_position
-        
+
         # Setup extruder stepper
         # NOTE: an ExtruderStepper class is instantiated if no pins
         #       were defined in the extruder config section (step/dir/...).
@@ -335,7 +340,7 @@ class PrinterExtruder:
             # TODO: it might be possible to add an endstop after this.
             self.extruder_stepper = ExtruderStepper(config)
             self.extruder_stepper.stepper.set_trapq(self.trapq)
-        
+
         # Register commands
         gcode = self.printer.lookup_object('gcode')
         if self.name == 'extruder':
@@ -343,7 +348,7 @@ class PrinterExtruder:
             gcode.register_command("M104", self.cmd_M104, desc=self.cmd_M104_help)
             gcode.register_command("M109", self.cmd_M109, desc=self.cmd_M109_help)
         # NOTE: a mux command is registered and identified uniquely by the "cmd",
-        #       the "key", and also the key's "value". This means that the 
+        #       the "key", and also the key's "value". This means that the
         #       ACTIVATE_EXTRUDER command will run in different instances
         #       of PrinterExtruder classes if the "value" differs.
         gcode.register_mux_command(cmd="ACTIVATE_EXTRUDER", key="EXTRUDER",
@@ -366,17 +371,17 @@ class PrinterExtruder:
         return self.trapq
     def stats(self, eventtime):
         return self.heater.stats(eventtime)
-    
+
     def check_move(self, move):
         # NOTE: get the extruder component of the move (ratio of total displacement).
         axis_r = move.axes_r[-1]
-        
+
         # NOTE: error-out if the extruder is not ready (not hot enough).
         if not self.heater.can_extrude:
             raise self.printer.command_error(
                 "Extrude below minimum temp\n"
                 "See the 'min_extrude_temp' config option for details")
-        
+
         # NOTE: other extrusion checks.
         if (not move.axes_d[0] and not move.axes_d[1]) or axis_r < 0. or self.symmetric:
             # Extrude only move (or retraction move) - limit accel and velocity
@@ -389,7 +394,7 @@ class PrinterExtruder:
             inv_extrude_r = 1. / abs(axis_r)
             move.limit_speed(self.max_e_velocity * inv_extrude_r,
                              self.max_e_accel * inv_extrude_r)
-        # NOTE: The following clause is run when the move is not a retraction, 
+        # NOTE: The following clause is run when the move is not a retraction,
         #       and it involves some motion in the XY direction (e.g. when printing).
         #       It seems to check if the extruder is extruding too much.
         elif axis_r > self.max_extrude_ratio:
@@ -403,12 +408,12 @@ class PrinterExtruder:
                 "Move exceeds maximum extrusion (%.3fmm^2 vs %.3fmm^2)\n"
                 "See the 'max_extrude_cross_section' config option for details"
                 % (area, self.max_extrude_ratio * self.filament_area))
-        
+
         # NOTE: Software limit checks.
         self.extruder_stepper.check_move_limits(move)
 
     def set_position(self, newpos_e, homing_axes=(), print_time=None):
-        """PrinterExtruder version of set_position in 'toolhead.py', 
+        """PrinterExtruder version of set_position in 'toolhead.py',
         called by its 'set_position_e' method.
         Should set the position in the 'trapq' and in the 'extruder kin'.
         """
@@ -420,9 +425,9 @@ class PrinterExtruder:
 
         # Set the TRAPQ's position
         self.trapq_set_position(self.trapq, print_time, newpos_e, 0., 0.)
-        
+
         # NOTE: Check if the E axis is being homed. This
-        #       will signal the stepper to set its limits 
+        #       will signal the stepper to set its limits
         #       and appear as "homed".
         # NOTE: 'homing_axes' should contain a value equal to 'self.toolhead.pos_length'
         #       in this case (e.g. '4' in an XYZE setup). See 'cmd_HOME_EXTRUDER' at 'extruder_home.py'.
@@ -445,7 +450,7 @@ class PrinterExtruder:
         #       In that call, the "print_time" is shared with
         #       the main XYZ stepper queue (sent to "trapq"),
         #       which is probably responsible for the synced
-        #       motion of the extruder stepper and the XYZ 
+        #       motion of the extruder stepper and the XYZ
         #       axes.
         # NOTE: the "move" argument comes from a list of moves.
         #       A "move" is appended to that list by calls to the "ToolHead.add_move" method.
@@ -466,9 +471,9 @@ class PrinterExtruder:
         # Queue movement (x is extruder movement, y is pressure advance flag)
         # NOTE: the following "self.trapq" was setup during this class's init.
         # TODO: after reading the code overview (https://www.klipper3d.org/Code_Overview.html)
-        #       I still don't know for sure _where_ in the code these queues of 
+        #       I still don't know for sure _where_ in the code these queues of
         #       moves end up together. The only reasonable place left seems to be
-        #       in the "serialqueue.c" or nearby files. What I know is that they 
+        #       in the "serialqueue.c" or nearby files. What I know is that they
         #       are coordinated by print_time at "_process_moves" (see: toolhead.py).
         self.trapq_append(self.trapq, print_time,
                           move.accel_t, move.cruise_t, move.decel_t,
@@ -481,11 +486,12 @@ class PrinterExtruder:
         if self.extruder_stepper is None:
             return 0.
         return self.extruder_stepper.find_past_position(print_time)
-    
+
     def calc_position(self, stepper_positions):
-        # NOTE: borrowed from the cartesian kinematics for "homing.py".
+        """Borrowed 'calc_position' from the cartesian kinematics for 'calc_toolhead_pos' in 'homing.py'."""
+        # TODO: Is this called at all? There is no "self.rails" here.
         return [stepper_positions[rail.get_name()] for rail in self.rails]
-    
+
     cmd_M104_help = "Set extruder temperature without waiting"
     def cmd_M104(self, gcmd, wait=False):
         # Set Extruder Temperature
@@ -526,7 +532,7 @@ class PrinterExtruder:
         self.printer.send_event("extruder:activate_extruder")
 
 # Dummy extruder class used when a printer has no extruder at all
-# NOTE: this dummy extruder class is used to initialize 
+# NOTE: this dummy extruder class is used to initialize
 #       ToolHead classes at ToolHead.py.
 class DummyExtruder:
     name = None

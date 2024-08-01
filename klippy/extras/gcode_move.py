@@ -12,7 +12,7 @@ class GCodeMove:
     """Main GCodeMove class.
 
     Example config:
-    
+
     [printer]
     kinematics: cartesian
     axis: XYZ  # Optional: XYZ or XYZABC
@@ -20,14 +20,14 @@ class GCodeMove:
     max_velocity: 5000
     max_z_velocity: 250
     max_accel: 1000
-    
+
     TODO:
       - The "checks" still have the XYZ logic.
       - Homing is not implemented for ABC.
     """
     def __init__(self, config, toolhead_id="toolhead"):
         self.toolhead_id = toolhead_id
-        
+
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
         # TODO: cmd_M114 only supports 3 or 6 for now.
         # TODO: find a way to get the axis value from the config, this does not work.
@@ -52,13 +52,13 @@ class GCodeMove:
         # NOTE: The value of this attriute must match the one at "toolhead.py".
 
         # Dictionary to map axes to their indexes in the position vector.
-        # Examples: 
+        # Examples:
         #   {'X': 0, 'Y': 1, 'Z': 2, 'A': 3, 'B': 4, 'C': 5, 'E': 6}
         #   {'X': 0, 'Y': 1, 'Z': 2, 'E': 3}
         self.axis_map = {a: i for i, a in enumerate(list(self.axis_letters)[:self.min_axes] + ["E"])}
-        
+
         logging.info(f"GCodeMove: starting setup with axis_names='{self.axis_names}' and axis_map: '{self.axis_map}'")
-        
+
         printer = config.get_printer()
         self.printer: klippy.Printer = printer
         # NOTE: Event prefixes are not neeeded here, because the init class
@@ -77,7 +77,7 @@ class GCodeMove:
         printer.register_event_handler("homing:home_rails_end",
                                        self._handle_home_rails_end)
         self.is_printer_ready = False
-        
+
         # Register g-code commands
         gcode: GCodeDispatch = printer.lookup_object('gcode')
         handlers = [
@@ -91,41 +91,41 @@ class GCodeMove:
             func = getattr(self, 'cmd_' + cmd)
             desc = getattr(self, 'cmd_' + cmd + '_help', None)
             gcode.register_command(cmd, func, when_not_ready=False, desc=desc)
-        
+
         # Register G0 as an alias for G1.
         # TODO: Re-implement G0 as a proper "fast/non-contact move".
         gcode.register_command('G0', self.cmd_G1, when_not_ready=False, desc=self.cmd_G0_help)
-        
+
         # NOTE: These commands require `when_not_ready=True`.
         gcode.register_command('M114', self.cmd_M114, when_not_ready=True)
         gcode.register_command('GET_POSITION', self.cmd_GET_POSITION, when_not_ready=True,
                                desc=self.cmd_GET_POSITION_help)
 
         self.Coord = gcode.Coord
-        
+
         # G-Code coordinate manipulation
         self.absolute_coord = self.absolute_extrude = True
-        # NOTE: The length of these vectors must match the 
+        # NOTE: The length of these vectors must match the
         #       "commanded_pos" attribute in "toolhead.py".
         self.base_position = [0.0 for i in range(self.pos_length)]
         self.last_position = self.base_position.copy()
         self.homing_position = self.base_position.copy()
         self.speed = 25.
-        # TODO: This 1/60 by default, because "feedrates" 
+        # TODO: This 1/60 by default, because "feedrates"
         #       provided by the "F" GCODE are in "mm/min",
         #       which contrasts with the usual "mm/sec" unit
         #       used throughout Klipper.
         self.speed_factor = 1. / 60.
         self.extrude_factor = 1.
-        
+
         # G-Code state
         self.saved_states = {}
         self.move_transform = self.move_with_transform = None
-        # NOTE: Default function for "position_with_transform", 
+        # NOTE: Default function for "position_with_transform",
         #       overriden later on by "_handle_ready" (which sets
         #       toolhead.get_position) or "set_move_transform".
         self.position_with_transform = (lambda: [0.0 for i in range(self.pos_length)])
-    
+
     def _handle_ready(self):
         self.is_printer_ready = True
         if self.move_transform is None:
@@ -133,7 +133,7 @@ class GCodeMove:
             self.move_with_transform = toolhead.move
             self.position_with_transform = toolhead.get_position
         self.reset_last_position()
-    
+
     def _handle_shutdown(self):
         if not self.is_printer_ready:
             return
@@ -145,7 +145,7 @@ class GCodeMove:
                      self.base_position, self.last_position,
                      self.homing_position, self.speed_factor,
                      self.extrude_factor, self.speed)
-    
+
     def _handle_activate_extruder(self):
         # NOTE: the "reset_last_position" method overwrites "last_position"
         #       with the position returned by "position_with_transform",
@@ -156,27 +156,27 @@ class GCodeMove:
         #       (by the cmd_ACTIVATE_EXTRUDER method in "extruder.py").
         # TODO: find out if this can fail when the printer is "not ready".
         self.reset_last_position()
-        
+
         # TODO: why would the factor be set to 1 here?
         self.extrude_factor = 1.
-        
-        # TODO: why would the base position be set to the last position of 
+
+        # TODO: why would the base position be set to the last position of
         #       the new extruder?
         # NOTE: Commented the following line, which was effectively like
         #       running "G92 E0". It was meant to "support main slicers",
-        #       but no checking was done. 
+        #       but no checking was done.
         #       See discussion at: https://klipper.discourse.group/t/6558
         # self.base_position[3] = self.last_position[3]
-    
+
     def _handle_home_rails_end(self, homing_state: Homing, rails):
         self.reset_last_position()
         for axis in homing_state.get_axes():
             self.base_position[axis] = self.homing_position[axis]
-    
+
     def set_move_transform(self, transform, force=False):
         # NOTE: This method is called by bed_mesh, bed_tilt,
-        #       skewcorrection, etc. to set a special move 
-        #       transformation function. By default the 
+        #       skewcorrection, etc. to set a special move
+        #       transformation function. By default the
         #       "move_with_transform" function is "toolhead.move".
         if self.move_transform is not None and not force:
             raise self.printer.config_error(
@@ -188,18 +188,18 @@ class GCodeMove:
         self.move_with_transform = transform.move
         self.position_with_transform = transform.get_position
         return old_transform
-    
+
     def _get_gcode_position(self):
         p = [lp - bp for lp, bp in zip(self.last_position, self.base_position)]
         p[-1] /= self.extrude_factor
         return p
-    
+
     def _get_gcode_speed(self):
         return self.speed / self.speed_factor
-    
+
     def _get_gcode_speed_override(self):
         return self.speed_factor * 60.
-    
+
     def get_status(self, eventtime=None):
         move_position = self._get_gcode_position()
         return {
@@ -213,7 +213,7 @@ class GCodeMove:
             'position': self.Coord(*self.last_position[:-1], e=self.last_position[-1]),
             'gcode_position': self.Coord(*move_position[:-1], e=move_position[-1]),
         }
-    
+
     def reset_last_position(self):
         # NOTE: Handler for "toolhead:set_position" and other events,
         #       sent at least by "toolhead.set_position" and also
@@ -221,18 +221,18 @@ class GCodeMove:
         logging.info(f"gcode_move.reset_last_position: triggered.")
         if self.is_printer_ready:
             # NOTE: The "" method is actually either "transform.get_position",
-            #       "toolhead.get_position", or a default function returning "0.0" 
+            #       "toolhead.get_position", or a default function returning "0.0"
             #       for all axis.
             self.last_position = self.position_with_transform()
             logging.info(f"gcode_move.reset_last_position: set self.last_position={self.last_position}")
         else:
             logging.info(f"gcode_move.reset_last_position: printer not ready self.last_position={self.last_position} not updated.")
-    
+
     # G-Code movement commands
     cmd_G1_help = "Linear move to a specified position with a controlled feedrate."
     cmd_G0_help = "Command alias for G1."
     def cmd_G1(self, gcmd):
-        
+
         # Move
         params = gcmd.get_command_parameters()
         logging.info(f"GCodeMove: G1 starting setup with params={params}")
@@ -268,19 +268,19 @@ class GCodeMove:
                     raise gcmd.error("Invalid speed in '%s'"
                                      % (gcmd.get_commandline(),))
                 self.speed = gcode_speed * self.speed_factor
-            
+
         except ValueError as e:
             raise gcmd.error("Unable to parse move '%s'"
                              % (gcmd.get_commandline(),))
-        
-        # NOTE: send event to handlers, like "extra_toolhead.py" 
+
+        # NOTE: send event to handlers, like "extra_toolhead.py"
         self.printer.send_event("gcode_move:parsing_move_command", gcmd, params)
-        
-        # NOTE: This is just a call to "toolhead.move", unless a 
+
+        # NOTE: This is just a call to "toolhead.move", unless a
         #       move "transform" is in between (e.g. a bed mesh).
         logging.info(f"GCodeMove: G1 moving to '{self.last_position}' at speed: {self.speed}")
         self.move_with_transform(self.last_position, self.speed)
-    
+
     # G-Code coordinate manipulation
     cmd_G20_help = "Set units to inches."
     def cmd_G20(self, gcmd):
@@ -322,14 +322,14 @@ class GCodeMove:
                 self.base_position[pos_idx] = self.last_position[pos_idx] - offset
         if all([v is None for v in offsets]):
             self.base_position = list(self.last_position)
-    
+
     cmd_M114_help = "Get current position."
     def cmd_M114(self, gcmd):
         # Get Current Position
         pos = self._get_gcode_position()
         msg = " ".join([k.upper() + ":" + "%.3f" % pos[v] for k, v in self.axis_map.items() ])
         gcmd.respond_raw(copy(msg))
-    
+
     cmd_M220_help = "Set speed factor override percentage."
     def cmd_M220(self, gcmd):
         # Set speed factor override percentage
@@ -342,7 +342,7 @@ class GCodeMove:
         #       effect, and multiplying by the new one applies it.
         self.speed = self._get_gcode_speed() * value
         self.speed_factor = value
-    
+
     cmd_M221_help = "Set extrude factor override percentage."
     def cmd_M221(self, gcmd):
         # Set extrude factor override percentage
@@ -351,7 +351,7 @@ class GCodeMove:
         e_value = (last_e_pos - self.base_position[-1]) / self.extrude_factor
         self.base_position[-1] = last_e_pos - e_value * new_extrude_factor
         self.extrude_factor = new_extrude_factor
-    
+
     cmd_SET_GCODE_OFFSET_help = "Set a virtual offset to g-code positions"
     def cmd_SET_GCODE_OFFSET(self, gcmd):
         move_delta = [0.0 for i in range(self.pos_length)]
@@ -373,7 +373,7 @@ class GCodeMove:
             for pos, delta in enumerate(move_delta):
                 self.last_position[pos] += delta
             self.move_with_transform(self.last_position, speed)
-    
+
     cmd_SAVE_GCODE_STATE_help = "Save G-Code coordinate state"
     def cmd_SAVE_GCODE_STATE(self, gcmd):
         state_name = gcmd.get('NAME', 'default')
@@ -386,7 +386,7 @@ class GCodeMove:
             'speed': self.speed, 'speed_factor': self.speed_factor,
             'extrude_factor': self.extrude_factor,
         }
-    
+
     cmd_RESTORE_GCODE_STATE_help = "Restore a previously saved G-Code state"
     def cmd_RESTORE_GCODE_STATE(self, gcmd):
         state_name = gcmd.get('NAME', 'default')
@@ -409,21 +409,21 @@ class GCodeMove:
             speed = gcmd.get_float('MOVE_SPEED', self.speed, above=0.)
             self.last_position[:-1] = state['last_position'][:-1]
             self.move_with_transform(self.last_position, speed)
-    
+
     cmd_GET_POSITION_help = (
         "Return information on the current location of the toolhead")
     def cmd_GET_POSITION(self, gcmd: GCodeCommand):
-        
+
         # TODO: add ABC steppers to GET_POSITION.
         # TODO: add manual steppers to GET_POSITION.
         if self.axis_names != 'XYZ':
-            gcmd.respond_info(f'cmd_GET_POSITION: Partial support for extruder position information. Only XYZABC is complete.')
-        
+            gcmd.respond_info('cmd_GET_POSITION: Partial support for extruder position information. Only XYZABC is complete.')
+
         toolhead = self.printer.lookup_object(self.toolhead_id, None)
-        
+
         if toolhead is None:
             raise gcmd.error("Printer not ready")
-        
+
         # TODO: Add information from the extruder kinematic, if any.
         mcu_pos_list = []
         stepper_pos_list = []
@@ -442,21 +442,21 @@ class GCodeMove:
             kinfo = zip(kin.axis_names, kin.calc_position(dict(cinfo)))
             kin_pos = " ".join(["%s:%.6f" % (a, v) for a, v in kinfo])
             kin_pos_list.append(kin_pos)
-        
+
         # Toolhead
         toolhead_coords = toolhead.get_position()
         toolhead_pos = " ".join(["%s:%.6f" % (a, toolhead_coords[self.axis_map[a]])
                                 for a in self.axis_names + "E"])
-        
+
         gcode_pos = " ".join(["%s:%.6f"  % (a, self.last_position[self.axis_map[a]])
                               for a in self.axis_names + "E"])
-        
+
         base_pos = " ".join(["%s:%.6f"  % (a, self.base_position[self.axis_map[a]])
                              for a in self.axis_names + "E"])
-        
+
         homing_pos = " ".join(["%s:%.6f"  % (a, self.homing_position[self.axis_map[a]])
                                for a in self.axis_names + "E"])
-        
+
         gcmd.respond_info("mcu: %s\n"
                           "stepper: %s\n"
                           "kinematic: %s\n"
