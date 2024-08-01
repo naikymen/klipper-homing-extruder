@@ -31,6 +31,10 @@ Disclaimers:
 - This is an **EXPERIMENTAL** fork. Consider asking around (e.g. reach out through [the forum](https://klipper.discourse.group/t/12249)) before giving it a try.
 - Always protect your machine (and youself) first.
 
+Simple demo on YouTube:
+
+[![IMAGE ALT TEXT](http://img.youtube.com/vi/8IuYqU3vUo4/0.jpg)](http://www.youtube.com/watch?v=8IuYqU3vUo4 "Demo on YouTube")
+
 [![Klipper](docs/img/klipper-logo-small.png)](https://www.klipper3d.org/)
 
 ---
