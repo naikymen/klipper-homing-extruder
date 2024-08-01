@@ -160,6 +160,13 @@ class ExtruderHoming:
         # NOTE: in the "ExtruderStepper" class, the "rail" and the "stepper"
         #       objects are _the same_ object.
 
+        # Check that an enstop was configured.
+        # NOTE: Checking that the stepper is a PrinterRail (instead of a PrinterStepper) should be enough for now.
+        if not isinstance(self.rail, stepper.PrinterRail):
+            raise gcmd.error("ExtruderHoming error: " +
+                             f"Homing was not configured for extruder '{self.extruder_name}'. " +
+                             "Add endstop parameters to the extruder's config section to enable homing.")
+
         # NOTE: Get the endstops from the extruder's PrinterRail.
         #       likely a list of tuples, each with an instance of
         #       MCU_endstop and a stepper name.
