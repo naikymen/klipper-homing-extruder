@@ -18,14 +18,19 @@
 #   config/configs-pipetting-bot/configs-mainsail/printer.cfg
 #   config/configs-pipetting-bot/configs-mainsail/home_extruder.cfg
 
-import stepper, chelper, logging
-from toolhead import Move
-from collections import namedtuple
+# pylint: disable=missing-class-docstring,missing-function-docstring,invalid-name,line-too-long,consider-using-f-string,multiple-imports,wrong-import-position
+# pylint: disable=logging-fstring-interpolation,logging-not-lazy,fixme
+
+# from collections import namedtuple
+import logging
+
+import stepper  # , chelper
+# from toolhead import Move
 from kinematics.extruder import PrinterExtruder, ExtruderStepper
 from extras.homing import PrinterHoming
 from gcode import GCodeDispatch
-from klippy import Printer
 from toolhead import ToolHead
+from klippy import Printer
 
 class ExtruderHoming:
     """
@@ -96,7 +101,17 @@ class ExtruderHoming:
                                         when_not_ready=False,
                                         desc=self.cmd_HOME_ACTIVE_EXTRUDER_help)
 
-        logging.info(f"ExtruderHoming: init complete")
+        # Placeholders
+        self.active_extruder: PrinterExtruder = None
+        self.active_extruder_name: str = None
+        self.extruder_trapq = None
+        self.extruder_stepper = None
+        self.rail = None
+        self.stepper = None
+        self.steppers = None
+        self.homing_info = None
+
+        logging.info("ExtruderHoming: init complete")
 
         # # NOTE: setup event handler to "finalize" the extruder trapq after
         # #       a drip move, but before the "flush_step_generation" call.
@@ -145,15 +160,15 @@ class ExtruderHoming:
                 self.extruder.cmd_ACTIVATE_EXTRUDER(gcmd=gcmd)
             except:
                 raise gcmd.error("ExtruderHoming.cmd_HOME_EXTRUDER: " +
-                                f"{self.active_extruder_name} is active " +
-                                f"but homing {self.extruder_name} was requested. " +
-                                f"Could not activate {self.active_extruder_name}.")
+                                 f"{self.active_extruder_name} is active " +
+                                 f"but homing {self.extruder_name} was requested. " +
+                                 f"Could not activate {self.active_extruder_name}.")
 
         # NOTE: Get the active extruder's trapq.
         self.extruder_trapq = self.extruder.get_trapq()         # extruder trapq (from ffi)
 
         # NOTE: Get the steppers
-        self.extruder_stepper = self.extruder.extruder_stepper      # ExtruderStepper
+        self.extruder_stepper: ExtruderStepper = self.extruder.extruder_stepper      # ExtruderStepper
         self.rail: stepper.PrinterRail = self.extruder_stepper.rail # PrinterRail
         self.stepper: stepper.MCU_stepper = self.extruder_stepper.stepper   # MCU_stepper
         self.steppers = [self.stepper]                              # [MCU_stepper]
@@ -251,16 +266,16 @@ class ExtruderHoming:
         # NOTE: Get the toolhead and its *current* extruder.
         toolhead: ToolHead = self.printer.lookup_object("toolhead")
         active_extruder = toolhead.get_extruder()           # PrinterExtruder
-        active_extruder_name = active_extruder.get_name()
+        # active_extruder_name = active_extruder.get_name()
 
         # NOTE: Get the active extruder's trapq.
-        extruder_trapq = active_extruder.get_trapq()        # extruder trapq (from ffi)
+        # extruder_trapq = active_extruder.get_trapq()        # extruder trapq (from ffi)
 
         # NOTE: Get the steppers
         extruder_stepper = active_extruder.extruder_stepper # ExtruderStepper
         rail = extruder_stepper.rail                        # PrinterRail
-        stepper = extruder_stepper.stepper                  # PrinterRail or PrinterStepper
-        steppers = [stepper]                                # [PrinterRail or PrinterStepper]
+        # stepper = extruder_stepper.stepper                  # PrinterRail or PrinterStepper
+        # steppers = [stepper]                                # [PrinterRail or PrinterStepper]
         # NOTE: in the "ExtruderStepper" class, the "rail" and the "stepper"
         #       objects are _the same_ object.
 
@@ -331,7 +346,8 @@ class ExtruderHoming:
         #   position_min: 0.0
         #   position_max: 30.0
         #   homing_positive_dir: False
-        position_min, position_max = rail.get_range()
+        # TODO: Review if using "get_range" was important, or remove.
+        # position_min, position_max = rail.get_range()
 
         # NOTE: Use the endstop's position.
         #       The direction of the move towards this point is defined
