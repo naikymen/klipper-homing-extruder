@@ -5,6 +5,7 @@
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import logging
 from . import bulk_sensor
+from statistics import mean
 
 #
 # Constants
@@ -64,6 +65,10 @@ class HX71xBase():
                            % (self.oid,), on_restart=True)
 
         mcu.register_config_callback(self._build_config)
+
+        gcode = self.printer.lookup_object('gcode')
+        gcode.register_command('QUERY_HX71', self.QUERY_HX71,
+                               desc=self.QUERY_HX71_help)
 
     def _build_config(self):
         self.query_hx71x_cmd = self.mcu.lookup_command(
@@ -143,6 +148,36 @@ class HX71xBase():
             self.consecutive_fails = 0
         return {'data': samples, 'errors': self.last_error_count,
                 'overflows': self.ffreader.get_last_overflows()}
+
+    QUERY_HX71_help="yaaay!"
+    QUERY_HX71_ON = False
+    def QUERY_HX71(self, gcmd):
+        self.QUERY_HX71_ON = not self.QUERY_HX71_ON
+        self.gcmd = gcmd
+        if self.QUERY_HX71_ON:
+            reactor = self.printer.get_reactor()
+            systime = reactor.monotonic()
+            waketime = systime + 2.0
+            reactor.register_timer(self._proc_batch, waketime)
+            self._start_measurements()
+            self.gcmd.respond_info(f"{self.sensor_type}: starting measurements.")
+        else:
+            self._finish_measurements()
+            self.gcmd.respond_info(f"{self.sensor_type}: finishing measurements.")
+
+    def _proc_batch(self, eventtime):
+        reactor = self.printer.get_reactor()
+        if self.QUERY_HX71_ON:
+            data = self._process_batch(eventtime)
+            mean_counts = mean([d[1] for d in data["data"]])
+            n_samples = len(data["data"])
+            self.gcmd.respond_info(f"{self.sensor_type}: counts={mean_counts} (samples={n_samples})")
+            systime = reactor.monotonic()
+            waketime = systime + 2.0
+            return waketime
+        else:
+            self._finish_measurements()
+            return self.printer.get_reactor().NEVER
 
 
 class HX711(HX71xBase):
