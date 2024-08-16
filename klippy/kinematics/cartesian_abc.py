@@ -278,11 +278,9 @@ class CartKinematicsABC(CartKinematics):
             self.limits[axis] = rail.get_range()
 
     def note_z_not_homed(self):
-        # Helper for Safe Z Home
-        # self.limits[2] = (1.0, -1.0)
-        # TODO: reconsider ignoring the call, it can be produced by "safe_z_home".
-        logging.info(f"CartKinematicsABC WARNING: call to note_z_not_homed ignored.")
-        pass
+        if "Z" in self.axis_names:
+            # Helper for Safe Z Home
+            self.limits[self.axis_map["Z"]] = (1.0, -1.0)
 
     def home_axis(self, homing_state: Homing, axis, rail):
         # Determine movement

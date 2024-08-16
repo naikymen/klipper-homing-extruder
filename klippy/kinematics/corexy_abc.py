@@ -178,10 +178,11 @@ class CoreXYKinematicsABC:
     
     def note_z_not_homed(self):
         # Helper for Safe Z Home
-        # TODO: The call can be produced by "safe_z_home".
         # NOTE: This will surely not cause a crash, since for now I'd
         #       require a CoreXY Kinematic to be setup with a Z axis.
-        self.limits[2] = (1.0, -1.0)
+        if "Z" in self.axis_names:
+            # Helper for Safe Z Home
+            self.limits[self.axis_map["Z"]] = (1.0, -1.0)
 
     def home(self, homing_state):
         # Each axis is homed independently and in order

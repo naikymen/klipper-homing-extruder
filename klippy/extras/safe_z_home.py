@@ -4,7 +4,17 @@
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 
+# For type checking without cyclic import error.
+# See: https://stackoverflow.com/a/39757388
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from extras.homing import Homing
+    from ..configfile import ConfigWrapper
+    from ..toolhead import ToolHead
+
 class SafeZHoming:
+    """Extras module for the [safe_z_home] config section."""
     def __init__(self, config):
         self.printer = config.get_printer()
         x_pos, y_pos = config.getfloatlist("home_xy_position", count=2)
@@ -26,7 +36,7 @@ class SafeZHoming:
 
     cmd_G28_help = "Performing Homing procedure with Safe Z Home"
     def cmd_G28(self, gcmd):
-        toolhead = self.printer.lookup_object('toolhead')
+        toolhead: ToolHead = self.printer.lookup_object('toolhead')
         z_axis_idx: int = toolhead.axis_map["Z"]
 
         # Perform Z Hop if necessary
@@ -42,8 +52,8 @@ class SafeZHoming:
                 toolhead.set_position(pos, homing_axes=[z_axis_idx])
                 toolhead.manual_move([None, None, self.z_hop],
                                      self.z_hop_speed)
-                if hasattr(toolhead.get_kinematics(), "note_z_not_homed"):
-                    toolhead.get_kinematics().note_z_not_homed()
+                if hasattr(toolhead.get_kinematics(axes="XYZ"), "note_z_not_homed"):
+                    toolhead.get_kinematics(axes="XYZ").note_z_not_homed()
             elif pos[z_axis_idx] < self.z_hop:
                 # If the Z axis is homed, and below z_hop, lift it to z_hop
                 toolhead.manual_move([None, None, self.z_hop],
