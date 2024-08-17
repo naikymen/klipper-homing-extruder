@@ -98,8 +98,8 @@ class SafeZHoming:
                                          self.z_hop_speed)
             # Move XY back to previous positions
             if self.move_to_previous:
-                xy_idxs = [toolhead.axis_map[a] for a in "XY"]
-                toolhead.manual_move(prevpos[xy_idxs], self.speed)
+                return_pos = toolhead.make_pos_vector_by_axis(prevpos, "XY")
+                toolhead.manual_move(return_pos, self.speed)
 
 def load_config(config):
     return SafeZHoming(config)
