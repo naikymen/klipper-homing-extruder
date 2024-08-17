@@ -1023,6 +1023,19 @@ class ToolHead:
         return self.reactor.NEVER
 
     # Movement commands
+    def make_pos_vector_by_axis(self, coords:list, axis_names:str, base_value=None):
+        indexes = self.get_axes_idxs(axis_names)
+        return self.make_pos_vector(coords, indexes, base_value=base_value)
+
+    def make_pos_vector(self, coords:list, indexes:list, base_value=None):
+        base_vector = [base_value] * self.pos_length
+        return self.update_pos_vector(base_vector, coords, indexes)
+
+    def update_pos_vector(self, base_vector: list, new_coords:list, indexes:list):
+        for i in indexes:
+            base_vector[i] = new_coords[i]
+        return base_vector
+
     def get_position(self, axes:str=None):
         """Returns the position vector of the toolhead.
         Args:
