@@ -435,7 +435,7 @@ class ToolHead:
         self.axis_count = len(self.axis_names)
 
         # Axis sets and names for them are partially hardcoded all around.
-        self.axis_triplets = ["XYZ", "ABC"]  # TODO: generalize the code to support "UVW" axes.
+        self.axis_triplets = ["XYZ", "ABC", "UVW"]  # TODO: generalize the code to support "UVW" axes.
         self.ax_letters = "".join(self.axis_triplets)
         for l in self.axis_names:
             if l not in self.ax_letters:
@@ -549,13 +549,17 @@ class ToolHead:
         #    msg += " At least one axis must be configured. Use 'none' kinematics otherwise."
         #    logging.exception(msg)
         #    raise config.error(msg)
-        if len(self.axis_names) > 6:
+        if len(self.axis_names) > 9:
             msg = f"Error loading toolhead with '{self.axis_names}' ({len(self.axis_names)})."
-            msg += " No more than 6 axes can be configured, yet. Write an issue if you want this."
+            msg += " No more than 9 axes can be configured, yet. Write an issue if you want this."
             logging.exception(msg)
             raise config.error(msg)
-        elif self.min_axes > 3:
-            logging.info("ToolHead: setting up additional ABC trapq.")
+        else:
+            if self.min_axes > 3:
+                logging.info("ToolHead: setting up additional ABC trapq.")
+            if self.min_axes > 6:
+                logging.info("ToolHead: setting up additional UVW trapq.")
+
 
         # NOTE: load the gcode objects (?)
         gcode: GCodeDispatch = self.printer.lookup_object('gcode')
@@ -602,6 +606,9 @@ class ToolHead:
         Args:
             config (_type_): Klipper configuration object.
         """
+
+
+
         # Get and setup XYZ axes.
         xyz_axes = ''.join([ax for ax in self.axis_names if ax in "XYZ"])       # e.g. "XY"
         xyz_ids = [i for i, ax in enumerate(self.axis_names) if ax in "XYZ"]    # e.g. "[0, 1]"
@@ -630,8 +637,25 @@ class ToolHead:
         else:
             self.kin_abc, self.abc_trapq = None, None
 
+        #TODO: Make this a more generic routine to add in segments of 3 axis to a set max limit
+
+        # Setup UVW axes
+        uvw_axes = ''.join([ax for ax in self.axis_names if ax in "UVW"])       # e.g. "AB"
+        uvw_ids = [i for i, ax in enumerate(self.axis_names) if ax in "UVW"]    # e.g. "[3, 4]"
+        if uvw_axes:
+            # Create UVW kinematics class, and its UVW trapq (iterative solver).
+            self.kin_uvw, self.uvw_trapq = self.setup_kinematics(config=config,
+                                                                 config_name='kinematics_abc',
+                                                                 axes_ids=uvw_ids, # e.g. [3, 4 ,5]
+                                                                 axis_set_letters=uvw_axes)
+            # Save the kinematics to the dict.
+            self.kinematics["UVW"] = self.kin_uvw
+        else:
+            self.kin_uvw, self.uvw_trapq = None, None
+
         # Save the position indexes for the selected axes.
-        self.axes = xyz_ids + abc_ids
+        self.axes = xyz_ids + abc_ids + uvw_ids
+        
         # Add the extruder axis.
         self.axes += [self.axis_map["E"]]
 
