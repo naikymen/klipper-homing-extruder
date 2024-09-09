@@ -645,7 +645,7 @@ class ToolHead:
         if uvw_axes:
             # Create UVW kinematics class, and its UVW trapq (iterative solver).
             self.kin_uvw, self.uvw_trapq = self.setup_kinematics(config=config,
-                                                                 config_name='kinematics_abc',
+                                                                 config_name='kinematics_uvw',
                                                                  axes_ids=uvw_ids, # e.g. [3, 4 ,5]
                                                                  axis_set_letters=uvw_axes)
             # Save the kinematics to the dict.
