@@ -15,7 +15,7 @@ SAMPLE_ERROR_DESYNC = -0x80000000
 SAMPLE_ERROR_LONG_READ = 0x40000000
 
 # Implementation of HX711 and HX717
-class HX71xBase():
+class HX71xBase:
     def __init__(self, config, sensor_type,
                  sample_rate_options, default_sample_rate,
                  gain_options, default_gain):
@@ -54,8 +54,8 @@ class HX71xBase():
             self._finish_measurements, UPDATE_INTERVAL)
         # publish raw samples to the socket
         dump_path = "%s/dump_%s" % (sensor_type, sensor_type)
-        self.batch_bulk.add_mux_endpoint(dump_path, "sensor", self.name,
-                                         {'header': ('time', 'counts')})
+        hdr = {'header': ('time', 'counts', 'value')}
+        self.batch_bulk.add_mux_endpoint(dump_path, "sensor", self.name, hdr)
         # Command Configuration
         self.query_hx71x_cmd = None
         mcu.add_config_cmd(
@@ -180,23 +180,21 @@ class HX71xBase():
             return self.printer.get_reactor().NEVER
 
 
-class HX711(HX71xBase):
-    def __init__(self, config):
-        super(HX711, self).__init__(config, "hx711",
-                                    # HX711 sps options
-                                    {80: 80, 10: 10}, 80,
-                                    # HX711 gain/channel options
-                                    {'A-128': 1, 'B-32': 2, 'A-64': 3}, 'A-128')
+def HX711(config):
+    return HX71xBase(config, "hx711",
+                     # HX711 sps options
+                     {80: 80, 10: 10}, 80,
+                     # HX711 gain/channel options
+                     {'A-128': 1, 'B-32': 2, 'A-64': 3}, 'A-128')
 
 
-class HX717(HX71xBase):
-    def __init__(self, config):
-        super(HX717, self).__init__(config, "hx717",
-                                    # HX717 sps options
-                                    {320: 320, 80: 80, 20: 20, 10: 10}, 320,
-                                    # HX717 gain/channel options
-                                    {'A-128': 1, 'B-64': 2, 'A-64': 3,
-                                     'B-8': 4}, 'A-128')
+def HX717(config):
+    return HX71xBase(config, "hx717",
+                     # HX717 sps options
+                     {320: 320, 80: 80, 20: 20, 10: 10}, 320,
+                     # HX717 gain/channel options
+                     {'A-128': 1, 'B-64': 2, 'A-64': 3,
+                      'B-8': 4}, 'A-128')
 
 
 HX71X_SENSOR_TYPES = {

@@ -91,15 +91,12 @@ class ArcSupport:
         self.E_AXIS = self.axis_map.get("E", None)  # self.min_axes
         
         # Register g-code commands
-        self.handlers = [
-            'G2', 'G3', 'G17', 'G18', 'G19'
-        ]
-        # NOTE: this iterates over the commands above and finds the functions
-        #       and description strings by their names (as they appear in "handlers").
-        for cmd in self.handlers:
-            func = getattr(self, 'cmd_' + cmd)
-            desc = getattr(self, 'cmd_' + cmd + '_help', None)
-            self.gcode.register_command(cmd, func, when_not_ready=False, desc=desc)
+        self.gcode.register_command("G2", self.cmd_G2)
+        self.gcode.register_command("G3", self.cmd_G3)
+
+        self.gcode.register_command("G17", self.cmd_G17)
+        self.gcode.register_command("G18", self.cmd_G18)
+        self.gcode.register_command("G19", self.cmd_G19)
 
         # This is a named tuple with elements: ('x', 'y', 'z', 'e', 'a', 'b', 'c')
         # Values default to None.
@@ -139,108 +136,36 @@ class ArcSupport:
         if not gcodestatus['absolute_coordinates']:
             raise gcmd.error("G2/G3 does not support relative move mode")
         currentPos = gcodestatus['gcode_position']
+        absolut_extrude = gcodestatus['absolute_extrude']
 
         # Parse parameters
-        asTarget = self.Coord(
-            x=gcmd.get_float("X", currentPos[0]),
-            y=gcmd.get_float("Y", currentPos[1]),
-            z=gcmd.get_float("Z", currentPos[2]),
-            e=None,
-            a=None
-        )
+        asTarget = [gcmd.get_float("X", currentPos[0]),
+                    gcmd.get_float("Y", currentPos[1]),
+                    gcmd.get_float("Z", currentPos[2])]
 
         if gcmd.get_float("R", None) is not None:
             raise gcmd.error("G2/G3 does not support R moves")
 
         # determine the plane coordinates and the helical axis
-        asPlanar = [ gcmd.get_float(a, 0.) for i,a in enumerate('IJ') ]
+        I = gcmd.get_float('I', 0.)
+        J = gcmd.get_float('J', 0.)
+        asPlanar = (I, J)
         axes = (self.X_AXIS, self.Y_AXIS, self.Z_AXIS)
         if self.plane == self.ARC_PLANE_X_Z:
-            asPlanar = [ gcmd.get_float(a, 0.) for i,a in enumerate('IK') ]
+            K = gcmd.get_float('K', 0.)
+            asPlanar = (I, K)
             axes = (self.X_AXIS, self.Z_AXIS, self.Y_AXIS)
         elif self.plane == self.ARC_PLANE_Y_Z:
-            asPlanar = [ gcmd.get_float(a, 0.) for i,a in enumerate('JK') ]
+            K = gcmd.get_float('K', 0.)
+            asPlanar = (J, K)
             axes = (self.Y_AXIS, self.Z_AXIS, self.X_AXIS)
 
         if not (asPlanar[0] or asPlanar[1]):
             raise gcmd.error("G2/G3 requires IJ, IK or JK parameters")
 
-        asE = gcmd.get_float("E", None)
-        asF = gcmd.get_float("F", None)
-
-        # Build list of linear coordinates to move
-        # Expand the axes list to pass its values to: "alpha_axis", "beta_axis", "helical_axis"
-        coords = self.planArc(currentPos, asTarget, asPlanar, clockwise, *axes)
-        e_per_move = e_base = 0.
-        if asE is not None:
-            if gcodestatus['absolute_extrude']:
-                # NOTE: the extruder axis should always be the last item in the position vector.
-                e_base = currentPos[self.E_AXIS]
-            e_per_move = (asE - e_base) / len(coords)
-
-        # NOTE: Add support for moves in the ABC axes, which are not 
-        #       part of the arc move, and should be split like extruder
-        #       moves or "helical axis" moves are.
-        g1_abc_params = {}
-        g1_abc_increments = {}
-        abc_sq_displacement = 0.0  # Sum of the squared ABC displacements. 
-        extra_axes_idx = {ax: idx for ax, idx in self.axis_map.items() if idx not in [0,1,2,self.E_AXIS]}
-        for axis_letter, idx in extra_axes_idx.items():
-            axis_coord = gcmd.get_float(axis_letter, None)
-            if axis_coord is not None:
-                # Calculate the distance this axis will move during each arc segment.
-                axis_increment = axis_coord / len(coords)
-                # Calculate sum of square displacements for the extra axes.
-                abc_sq_displacement += axis_increment ** 2
-                # Make target coordinates for the extra axes of the first move.
-                g1_abc_params[axis_letter] = currentPos[idx] + axis_increment
-                g1_abc_increments[axis_letter] = axis_increment
-
-        # NOTE: Prepare a command that restores the original feedrate.
-        feedrate = self.gcode_move.speed * 1.0
-        if asF is not None:
-            feedrate = asF
-        g1_f_gcmd = self.gcode.create_gcode_command(command="G1", commandline="G1", params={"F": feedrate})
-
-        # Convert coords into G1 commands
-        prev_pos = copy.copy(currentPos)
-        for coord in coords:
-            g1_params = {'X': coord[0], 'Y': coord[1], 'Z': coord[2]}
-            for ax, pos in g1_abc_params.items():
-                g1_params[ax] = pos
-                g1_abc_params[ax] += g1_abc_increments[ax]
-            if e_per_move:
-                g1_params['E'] = e_base + e_per_move
-                if gcodestatus['absolute_extrude']:
-                    e_base += e_per_move
-            # NOTE: Calculate feedrate adjustment factor for the current move.
-            #       This is used to "increase" the feedrate internally,
-            #       because: (1) the feedrate for arc moves is expected
-            #       to affect to non-ABC moves only (2) Klipper will split
-            #       the "available feedrate" among all axes; except the E axis.
-            # xyz_sq_displacement = sum(i**2 for i in coord[0:3])
-            xyz_sq_displacement = sum([(c-pc)**2 for c, pc in zip(coord[0:3], prev_pos[0:3])])
-            feedrate_factor = math.sqrt(xyz_sq_displacement + abc_sq_displacement) / math.sqrt(xyz_sq_displacement)
-            # Save new coordinate for the next loop iteration.
-            prev_pos = coord
-            # Set the adjusted feedrate.
-            g1_params['F'] = feedrate * feedrate_factor
-            
-            # Generate the GCODE command.
-            g1_gcmd = self.gcode.create_gcode_command(
-                command="G1", 
-                commandline="G1", 
-                params=g1_params)
-            
-            # NOTE: write actual G1 commands to the log.
-            # gcode_log.info( f'G1 { " ".join([f"{k}{v}" for k, v in g1_params.items()]) }; >>> Arc segment with target: {asTarget}' )
-            gcode_log.info( f'G1 { " ".join([f"{k}{v}" for k, v in g1_params.items()]) }' )
-            
-            # Send the command to the move queue.
-            self.gcode_move.cmd_G1(g1_gcmd)
-        
-        # NOTE: restore original feedrate.
-        self.gcode_move.cmd_G1(g1_f_gcmd)
+        # Build linear coordinates to move
+        self.planArc(currentPos, asTarget, asPlanar, clockwise,
+                     gcmd, absolut_extrude, *axes)
 
     # function planArc() originates from marlin plan_arc()
     # https://github.com/MarlinFirmware/Marlin
@@ -251,6 +176,7 @@ class ArcSupport:
     #
     # alpha and beta axes are the current plane, helical axis is linear travel
     def planArc(self, currentPos, targetPos, offset, clockwise,
+                gcmd, absolut_extrude,
                 alpha_axis, beta_axis, helical_axis):
         # todo: sometimes produces full circles
 
@@ -290,11 +216,21 @@ class ArcSupport:
         # Generate coordinates
         theta_per_segment = angular_travel / segments
         linear_per_segment = linear_travel / segments
-        coords = []
-        for i in range(1, int(segments)):
+
+        asE = gcmd.get_float("E", None)
+        asF = gcmd.get_float("F", None)
+
+        e_per_move = e_base = 0.
+        if asE is not None:
+            if absolut_extrude:
+                e_base = currentPos[3]
+            e_per_move = (asE - e_base) / segments
+
+        for i in range(1, int(segments) + 1):
             dist_Helical = i * linear_per_segment
-            cos_Ti = math.cos(i * theta_per_segment)
-            sin_Ti = math.sin(i * theta_per_segment)
+            c_theta = i * theta_per_segment
+            cos_Ti = math.cos(c_theta)
+            sin_Ti = math.sin(c_theta)
             r_P = -offset[0] * cos_Ti + offset[1] * sin_Ti
             r_Q = -offset[0] * sin_Ti - offset[1] * cos_Ti
 
@@ -307,10 +243,20 @@ class ArcSupport:
             c[alpha_axis] = center_P + r_P
             c[beta_axis] = center_Q + r_Q
             c[helical_axis] = currentPos[helical_axis] + dist_Helical
-            coords.append(self.Coord(*c))
 
-        coords.append(targetPos)
-        return coords
+
+            if i == segments:
+                c = targetPos
+            # Convert coords into G1 commands
+            g1_params = {'X': c[0], 'Y': c[1], 'Z': c[2]}
+            if e_per_move:
+                g1_params['E'] = e_base + e_per_move
+                if absolut_extrude:
+                    e_base += e_per_move
+            if asF is not None:
+                g1_params['F'] = asF
+            g1_gcmd = self.gcode.create_gcode_command("G1", "G1", g1_params)
+            self.gcode_move.cmd_G1(g1_gcmd)
 
 def load_config(config):
     return ArcSupport(config)
