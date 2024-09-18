@@ -604,7 +604,7 @@ class ToolHead:
         """
         # Get and setup XYZ axes.
         xyz_axes = ''.join([ax for ax in self.axis_names if ax in "XYZ"])       # e.g. "XY"
-        xyz_ids = [i for i, ax in enumerate(self.axis_names) if ax in "XYZ"]    # e.g. "[0, 1]"
+        xyz_ids = [self.axis_map[ax] for ax in self.axis_names if ax in "XYZ"]  # e.g. "[0, 1]"
         if xyz_axes:
             # Create XYZ kinematics class, and its XYZ trapq (iterative solver).
             self.kin, self.trapq = self.setup_kinematics(config=config,
@@ -618,7 +618,7 @@ class ToolHead:
 
         # Setup ABC axes
         abc_axes = ''.join([ax for ax in self.axis_names if ax in "ABC"])       # e.g. "AB"
-        abc_ids = [i for i, ax in enumerate(self.axis_names) if ax in "ABC"]    # e.g. "[3, 4]"
+        abc_ids = [self.axis_map[ax] for ax in self.axis_names if ax in "ABC"]  # e.g. "[3, 4]"
         if abc_axes:
             # Create ABC kinematics class, and its ABC trapq (iterative solver).
             self.kin_abc, self.abc_trapq = self.setup_kinematics(config=config,
