@@ -220,11 +220,41 @@ class ArcSupport:
         asE = gcmd.get_float("E", None)
         asF = gcmd.get_float("F", None)
 
+        # NOTE: Add support for moves in the ABC axes, which are not 
+        #       part of the arc move, and should be split like extruder
+        #       moves or "helical axis" moves are.
+        g1_abc_params = {}
+        g1_abc_increments = {}
+        abc_sq_displacement = 0.0  # Sum of the squared ABC displacements. 
+        extra_axes_idx = {ax: idx for ax, idx in self.axis_map.items() if idx not in [0,1,2,self.E_AXIS]}
+        for axis_letter, idx in extra_axes_idx.items():
+            axis_coord = gcmd.get_float(axis_letter, None)
+            if axis_coord is not None:
+                # Calculate the distance this axis will move during each arc segment.
+                axis_increment = axis_coord / segments
+                # Calculate sum of square displacements for the extra axes.
+                abc_sq_displacement += axis_increment ** 2
+                # Make target coordinates for the extra axes of the first move.
+                g1_abc_params[axis_letter] = currentPos[idx] + axis_increment
+                g1_abc_increments[axis_letter] = axis_increment
+
+        # NOTE: Prepare a command that restores the original feedrate.
+        feedrate = self.gcode_move.speed * 1.0
+        if asF is not None:
+            feedrate = asF
+        g1_f_gcmd = self.gcode.create_gcode_command(command="G1", commandline="G1", params={"F": feedrate})
+
         e_per_move = e_base = 0.
         if asE is not None:
             if absolut_extrude:
                 e_base = currentPos[3]
             e_per_move = (asE - e_base) / segments
+
+        # Initialize previous position vector.
+        c_prev = [None for i in range(self.pos_length)]
+        c_prev[alpha_axis] = center_P
+        c_prev[beta_axis] = center_Q
+        c_prev[helical_axis] = currentPos[helical_axis]
 
         for i in range(1, int(segments) + 1):
             dist_Helical = i * linear_per_segment
@@ -234,29 +264,53 @@ class ArcSupport:
             r_P = -offset[0] * cos_Ti + offset[1] * sin_Ti
             r_Q = -offset[0] * sin_Ti - offset[1] * cos_Ti
 
-            # Coord is a named tuple with elements: ('x', 'y', 'z', 'e', 'a', 'b', 'c')
-            # Its values default to None.
-            # Coord doesn't support index assignment, create list.
-            # NOTE: Using "pos_length" (e.g. can be "3" for an XYZE setup).
-            #       This achieves backwardcompatibility.
+            # Dummy position vector.
             c = [None for i in range(self.pos_length)]
             c[alpha_axis] = center_P + r_P
             c[beta_axis] = center_Q + r_Q
             c[helical_axis] = currentPos[helical_axis] + dist_Helical
 
-
+            # Force target position if this is the last segment.
             if i == segments:
                 c = targetPos
+
             # Convert coords into G1 commands
             g1_params = {'X': c[0], 'Y': c[1], 'Z': c[2]}
             if e_per_move:
                 g1_params['E'] = e_base + e_per_move
                 if absolut_extrude:
                     e_base += e_per_move
-            if asF is not None:
-                g1_params['F'] = asF
+
+            # NOTE: Add support for linear moves in the ABC axes.
+            for ax, pos in g1_abc_params.items():
+                g1_params[ax] = pos
+                g1_abc_params[ax] += g1_abc_increments[ax]
+
+            # NOTE: Calculate feedrate adjustment factor for the current move.
+            #       This is used to "increase" the feedrate internally,
+            #       because: (1) the feedrate for arc moves is expected
+            #       to affect to non-ABC moves only (2) Klipper will split
+            #       the "available feedrate" among all axes; except the E axis.
+            xyz_sq_displacement = sum([(c_next-c_prev)**2 for c_next, c_prev in zip(c[0:3], c_prev[0:3])])
+            feedrate_factor = math.sqrt(xyz_sq_displacement + abc_sq_displacement) / math.sqrt(xyz_sq_displacement)
+
+            # Set the adjusted feedrate.
+            g1_params['F'] = feedrate * feedrate_factor
+
             g1_gcmd = self.gcode.create_gcode_command("G1", "G1", g1_params)
+
+            # NOTE: write actual G1 commands to the log.
+            # gcode_log.info( f'G1 { " ".join([f"{k}{v}" for k, v in g1_params.items()]) }; >>> Arc segment with target: {asTarget}' )
+            gcode_log.info( f'G1 { " ".join([f"{k}{v}" for k, v in g1_params.items()]) }' )
+
+            # Send the command to the move queue.
             self.gcode_move.cmd_G1(g1_gcmd)
+
+            # Save new coordinate for the next loop iteration.
+            c_prev = c.copy()
+
+        # NOTE: Restore original feedrate.
+        self.gcode_move.cmd_G1(g1_f_gcmd)
 
 def load_config(config):
     return ArcSupport(config)
