@@ -45,6 +45,10 @@ class CoreXYKinematicsABC:
         # Generate "local" indices (in the 0,1,2 range) for the kinematic's axes.
         self.axis_local = [i for i in range(self.axis_count)]  # Either [0, 1, 2], [0, 1] or [0].
 
+        # Mapping dictionaries.
+        self.axis_map = {k: v for k, v in zip(self.axis_names, self.axis_config)}       # {"x": 0}
+        self.axis_map_rev = {v: k for k, v in zip(self.axis_names, self.axis_config)}   # {0: "x"}
+
         # Just to check
         if len(self.axis_config) != self.axis_count:
             msg = f"CartKinematicsABC: The amount of axis indexes in '{self.axis_config}'"
