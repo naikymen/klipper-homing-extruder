@@ -15,13 +15,14 @@ Follow the discussion over at Klipper's forum: <https://klipper.discourse.group/
 What you can expect:
 
 - Expect spending some time tinkering a bit and asking for help, it will then hopefully work just fine.
-- The latest release should be functional, but you are still likely to find bugs lurking in my modifications. [Ask for help](https://klipper.discourse.group/t/12249) or raise an issue if you find any.
-- Many 3D-printer features in klipper are not tested (e.g. bed meshing) and most kinematics are not adapted (e.g. polar).
+- The latest release should be functional, but you are still likely to find bugs lurking in my modifications. [Ask for help](https://klipper.discourse.group/t/12249) or [raise an issue](https://github.com/naikymen/klipper-for-cnc/issues).
+- Many 3D-printer features in klipper are not tested (e.g. bed meshing) and most kinematics are not adapted (e.g. polar, delta, ...).
 
 Critical limitations: you should know this beforehand.
 
-- Only the **cartesian** kinematic has been adapted. Others could be without much work, this is a good place for contributions.
-- Acceleration is shared among all axes. Abrupt speed changes in the ABC axes will cause XYZ movements to slow down accordingly.
+- Only the **cartesian** kinematic has been adapted, and **core-xy** may work too. Others could be adapted without much work, this is a good place for contributions.
+- Acceleration is shared among all axes by default. Abrupt speed changes in the ABC axes will cause XYZ movements to slow down accordingly.
+  - Note: This has been mitigated somewhat with `accel_limited_axes`.
   - Note: motion on the ABC axes will not affect maximum speed of the XYZ axes, which will match the desired feedrate (`F` parameter).
 - Most of the modules in "extra" have not been tested and might not work as expected (e.g. the arcs module).
 - Limitations stated further down this readme.
