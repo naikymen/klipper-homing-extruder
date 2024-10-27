@@ -673,8 +673,11 @@ class ToolHead:
             logging.info(f"Loading kinematics {kin_name}.")
 
         # Create a Trapq for the kinematics
-        ffi_main, ffi_lib = chelper.get_ffi()
-        trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)  # TrapQ()
+        if kin_name == "none":
+            trapq = None
+        else:
+            ffi_main, ffi_lib = chelper.get_ffi()
+            trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)  # TrapQ()
 
         # Set up the kinematics object
         try:
@@ -1111,6 +1114,11 @@ class ToolHead:
             # Iterate over["XYZ", "ABC"]
             logging.info(f"toolhead.set_position: setting {axes} trapq position.")
             kin = self.kinematics[axes]
+            # Skip this for 'none' kinematics.
+            if kin.axis_names == "":
+                # TODO: De-hardcode this.
+                logging.info(f"toolhead.set_position: skipping {axes} trapq position for 'none' kinmatics.")
+                continue
             # Filter the axis IDs according to the current kinematic
             new_kin_pos = self.get_elements(newpos, kin.axis)
             logging.info(f"toolhead.set_position: using newpos={new_kin_pos}")
@@ -1118,7 +1126,7 @@ class ToolHead:
 
         # NOTE: Also set the position of the extruder's "trapq".
         #       Runs "trapq_set_position" and "rail.set_position".
-        logging.info(f"toolhead.set_position: setting E trapq pos.")
+        logging.info("toolhead.set_position: setting E trapq pos.")
         self.set_position_e(newpos_e=newpos[-1], homing_axes=homing_axes)
 
         # NOTE: Set the position of the axes "kinematics".
@@ -1126,6 +1134,11 @@ class ToolHead:
             # Iterate over["XYZ", "ABC"]
             logging.info(f"toolhead.set_position: setting {axes} kinematic position.")
             kin = self.kinematics[axes]
+            # Skip this for 'none' kinematics.
+            if kin.axis_names == "":
+                # TODO: De-hardcode this.
+                logging.info(f"toolhead.set_position: skipping {axes} kinematic position for 'none' kinmatics.")
+                continue
             # Filter the axis IDs according to the current kinematic, and convert them to the "0,1,2" range.
             kin_homing_axes = self.axes_to_xyz([axis for axis in homing_axes if axis in kin.axis])
             new_kin_pos = self.get_elements(newpos, kin.axis)
