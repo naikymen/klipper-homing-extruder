@@ -658,12 +658,6 @@ class ToolHead:
         # NOTE: No default value is passed, forcing the user to make a choice.
         kin_name = config.get(config_name)
 
-        # # Handle the "none" kinematics as a special case.
-        # if kin_name == "none":
-        #     trapq = None
-        #     kin = none.load_kinematics(toolhead=self, config=config, trapq=trapq)
-        #     return kin, trapq
-
         # TODO: Support other kinematics is due. Error out for now.
         if kin_name not in self.supported_kinematics:
             msg = f"Error loading kinematics '{kin_name}'. Currently supported kinematics: {self.supported_kinematics}"
@@ -673,11 +667,10 @@ class ToolHead:
             logging.info(f"Loading kinematics {kin_name}.")
 
         # Create a Trapq for the kinematics
-        if kin_name == "none":
-            trapq = None
-        else:
-            ffi_main, ffi_lib = chelper.get_ffi()
-            trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)  # TrapQ()
+        ffi_main, ffi_lib = chelper.get_ffi()
+        # Create a trapq object for this axis set even if the kinematics is set to "none".
+        # This is back-compatibile, as it is expected by common parts of the code, particularly by "motion_report".
+        trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)
 
         # Set up the kinematics object
         try:
