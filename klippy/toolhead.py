@@ -1559,27 +1559,35 @@ class ToolHead:
         self.lookahead.reset()
 
     def get_kinematics(self, axes="XYZ"):
-        if axes == "XYZ":
-            return self.kinematics[axes]
-        elif axes == "ABC":
+        """Get the kinematics object of an axis set, using XYZ by default.
+        If the requested axes were not configured, this will return "None" (see "setup_kinematics").
+        """
+        if axes in ["XYZ", "ABC"]:
             return self.kinematics[axes]
         else:
             logging.warning(f"get_kinematics: No kinematics matched to axes={axes} returning 'toolhead.kin' (legacy behaviour).")
             return self.kin
     def get_kinematics_abc(self):
+        """Get the kinematics object of the ABC axis set.
+        If the ABC axes were not configured, this will return "None" (see "setup_kinematics").
+        """
         # TODO: update the rest of the code to use "get_trapq" with "axes" instead.
         return self.kin_abc
 
     def get_trapq(self, axes="XYZ"):
-        if axes == "XYZ":
-            return self.kinematics[axes].trapq
-        elif axes == "ABC":
+        """Get the trapq object of an axis set, using XYZ by default.
+        If the requested axes were not configured, this will return "None" (see "setup_kinematics").
+        """
+        if axes in ["XYZ", "ABC"]:
             return self.kinematics[axes].trapq
         else:
             logging.info(f"get_trapq: No kinematics matched to axes={axes} returning 'toolhead.trapq' (legacy behaviour).")
             return self.trapq
     def get_abc_trapq(self):
-        # TODO: update the rest of the code to use "get_trapq" with "axes" instead.
+        """Get the trapq object of the ABC axes.
+        If the ABC axes were not configured, this will return "None" (see "setup_kinematics").
+        # TODO: update the rest of the code to use "get_trapq" with "axes=ABC" instead of this function.
+        """
         return self.abc_trapq
 
     def register_step_generator(self, handler):
