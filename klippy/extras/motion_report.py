@@ -82,7 +82,6 @@ class DumpTrapQ:
         res = []
         while 1:
             data = ffi_main.new('struct pull_move[128]')
-            # BUG: TypeError: initializer for ctype 'struct trapq *' must be a cdata pointer, not NoneType.
             count = ffi_lib.trapq_extract_old(self.trapq, data, len(data),
                                               start_time, end_time)
             if not count:
@@ -155,12 +154,12 @@ class PrinterMotionReport:
         toolhead = self.printer.lookup_object("toolhead")
         trapq = toolhead.get_trapq()
         self.trapqs['toolhead'] = DumpTrapQ(self.printer, 'toolhead', trapq)
-        
+
         # NOTE: Get ABC trapq.
         trapq_abc = toolhead.get_abc_trapq()
         if trapq_abc is not None:
             self.trapqs['toolhead_abc'] = DumpTrapQ(self.printer, 'toolhead_abc', trapq_abc)
-        
+
         # Lookup extruder trapqs
         for i in range(99):
             ename = "extruder%d" % (i,)
@@ -211,31 +210,32 @@ class PrinterMotionReport:
         if eventtime < self.next_status_time or not self.trapqs:
             return self.last_status
         self.next_status_time = eventtime + STATUS_REFRESH_TIME
-        
-        # NOTE: Get current XYZ position.
-        xyzpos = (0., 0., 0.)
-        epos = (0.,)
-        xyzvelocity = evelocity = 0.
-        # Calculate current requested toolhead position
         mcu = self.printer.lookup_object('mcu')
         print_time = mcu.estimated_print_time(eventtime)
-        # BUG: TypeError: initializer for ctype 'struct trapq *' must be a cdata pointer, not NoneType.
-        pos, velocity = self.trapqs['toolhead'].get_trapq_position(print_time)
-        if pos is not None:
-            xyzpos = pos[:3]
-            xyzvelocity = velocity
-        
+
+        # NOTE: Get current XYZ position.
+        xyzpos = (0., 0., 0.)
+        xyzvelocity = 0.
+        # Calculate current requested toolhead position
+        if self.trapqs.get('toolhead', None) is not None:
+            pos, velocity = self.trapqs['toolhead'].get_trapq_position(print_time)
+            if pos is not None:
+                xyzpos = pos[:3]
+                xyzvelocity = velocity
+
         # NOTE: Get current ABC position.
         abcpos = (0., 0., 0.)
         abcvelocity = 0.
         # Calculate current requested toolhead position
-        if self.trapqs.get('toolhead_abc', None):
+        if self.trapqs.get('toolhead_abc', None) is not None:
             pos, velocity = self.trapqs['toolhead_abc'].get_trapq_position(print_time)
             if pos is not None:
                 abcpos = pos[:3]
                 abcvelocity = velocity
-        
+
         # Calculate requested position of currently active extruder
+        epos = (0.,)
+        evelocity = 0.
         toolhead = self.printer.lookup_object('toolhead')
         ehandler = self.trapqs.get(toolhead.get_extruder().get_name())
         if ehandler is not None:
@@ -243,6 +243,7 @@ class PrinterMotionReport:
             if pos is not None:
                 epos = (pos[0],)
                 evelocity = velocity
+
         # Report status
         self.last_status = dict(self.last_status)
         # TODO: have this part handle ABC axes.
