@@ -82,6 +82,7 @@ class DumpTrapQ:
         res = []
         while 1:
             data = ffi_main.new('struct pull_move[128]')
+            # BUG: TypeError: initializer for ctype 'struct trapq *' must be a cdata pointer, not NoneType.
             count = ffi_lib.trapq_extract_old(self.trapq, data, len(data),
                                               start_time, end_time)
             if not count:
@@ -218,6 +219,7 @@ class PrinterMotionReport:
         # Calculate current requested toolhead position
         mcu = self.printer.lookup_object('mcu')
         print_time = mcu.estimated_print_time(eventtime)
+        # BUG: TypeError: initializer for ctype 'struct trapq *' must be a cdata pointer, not NoneType.
         pos, velocity = self.trapqs['toolhead'].get_trapq_position(print_time)
         if pos is not None:
             xyzpos = pos[:3]
