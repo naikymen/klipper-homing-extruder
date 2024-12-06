@@ -44,8 +44,7 @@ class Pipettin:
         # File where coordinates can be saved.
         self.output_file = config.get('output_file', "/tmp/saved_coordinates.json")
         # Create the file if it does not exist.
-        if not os.path.exists(self.output_file):
-            self.create_coordinate_file()
+        self.create_coordinate_file()
 
     def _handle_mcu_identify(self):
         self.toolhead: ToolHead = self.printer.lookup_object('toolhead')
