@@ -81,9 +81,10 @@ class Pipettin:
 
     def write_new_coordinate(self, position_data):
         # r+: open the file for reading and writing, without deleting.
-        with open(self.output_file, 'r+', encoding='utf-8') as file:
+        with open(self.output_file, 'r', encoding='utf-8') as file:
             coordinates = json.load(file)
-            coordinates.append(position_data)
+        coordinates.append(position_data)
+        with open(self.output_file, 'w', encoding='utf-8') as file:
             json.dump(coordinates, file, indent=4)
 
 def load_config(config):
