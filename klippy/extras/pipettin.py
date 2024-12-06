@@ -28,7 +28,6 @@ if TYPE_CHECKING:
 
 import os
 import json
-import logging
 
 class Pipettin:
     toolhead: ToolHead
@@ -45,8 +44,7 @@ class Pipettin:
         self.output_file = config.get('output_file', "/tmp/saved_coordinates.json")
         # Create the file if it does not exist.
         if not os.path.exists(self.output_file):
-            with open(self.output_file, 'w', encoding='utf-8') as file:
-                json.dump([], file, indent=4)
+            self.create_coordinate_file()
 
     def _handle_mcu_identify(self):
         self.toolhead: ToolHead = self.printer.lookup_object('toolhead')
@@ -77,15 +75,16 @@ class Pipettin:
             # Respond.
             gcmd.respond_info(f"New position saved: {last_position}")
 
+    def create_coordinate_file(self):
+        with open(self.output_file, 'w', encoding='utf-8') as file:
+            json.dump([], file, indent=4)
+
     def write_new_coordinate(self, position_data):
-        try:
-            with open(self.output_file, 'w+', encoding='utf-8') as file:
-                coordinates = json.load(file)
-                coordinates.append(position_data)
-                json.dump(coordinates, file, indent=4)
-        except Exception as e:
-            logging.error(f"Failed to save data: {coordinates}")
-            raise e
+        # r+: open the file for reading and writing, without deleting.
+        with open(self.output_file, 'r+', encoding='utf-8') as file:
+            coordinates = json.load(file)
+            coordinates.append(position_data)
+            json.dump(coordinates, file, indent=4)
 
 def load_config(config):
     return Pipettin(config)
