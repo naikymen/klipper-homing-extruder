@@ -77,8 +77,21 @@ class Pipettin:
             gcmd.respond_info(f"New position saved: {last_position}")
 
     def create_coordinate_file(self):
-        with open(self.output_file, 'w', encoding='utf-8') as file:
-            json.dump([], file, indent=4)
+        try:
+            # Check if the file exists
+            if os.path.exists(self.output_file):
+                # Attempt to load JSON data
+                with open(self.output_file, 'r', encoding='utf-8') as file:
+                    json.load(file)
+            else:
+                # File doesn't exist; create a new one with an empty list
+                with open(self.output_file, 'w', encoding='utf-8') as file:
+                    json.dump([], file, indent=4)
+        except (json.JSONDecodeError, OSError) as e:
+            logging.warning(f"Invalid JSON detected or error reading file {self.output_file}: {e}")
+            # Overwrite the file with an empty JSON array
+            with open(self.output_file, 'w', encoding='utf-8') as file:
+                json.dump([], file, indent=4)
 
     def write_new_coordinate(self, position_data):
         # r+: open the file for reading and writing, without deleting.
