@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 import os
 import json
 import logging
+import tempfile
 
 class Pipettin:
     toolhead: ToolHead
@@ -42,7 +43,8 @@ class Pipettin:
                                     when_not_ready=False,
                                     desc=self.cmd_SAVE_POINT_help)
         # File where coordinates can be saved.
-        self.output_file = config.get('output_file', "/tmp/saved_coordinates.json")
+        dflt_path = os.path.join(tempfile.gettempdir(), "saved_coordinates.json")
+        self.output_file = config.get('output_file', dflt_path)
         # Create the file if it does not exist.
         self.create_coordinate_file()
 
