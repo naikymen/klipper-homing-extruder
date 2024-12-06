@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 
 import os
 import json
+import logging
 
 class Pipettin:
     toolhead: ToolHead
@@ -81,10 +82,11 @@ class Pipettin:
 
     def write_new_coordinate(self, position_data):
         # r+: open the file for reading and writing, without deleting.
-        with open(self.output_file, 'r', encoding='utf-8') as file:
+        with open(self.output_file, 'r+', encoding='utf-8') as file:
             coordinates = json.load(file)
-        coordinates.append(position_data)
-        with open(self.output_file, 'w', encoding='utf-8') as file:
+            coordinates.append(position_data)
+            file.seek(0)  # Go back to the beginning of the file
+            file.truncate()  # Clear the file's contents
             json.dump(coordinates, file, indent=4)
 
 def load_config(config):
