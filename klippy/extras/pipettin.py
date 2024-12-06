@@ -74,7 +74,7 @@ class Pipettin:
         gcmd.respond_info(f"New position saved: {last_position}")
 
     def write_new_coordinate(self, position_data):
-        with open(self.output_file, 'r+', encoding='utf-8') as file:
+        with open(self.output_file, 'w+', encoding='utf-8') as file:
             coordinates = json.load(file)
             coordinates.append(position_data)
             json.dump(coordinates, file, indent=4)
