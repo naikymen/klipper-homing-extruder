@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 
 import os
 import json
+import logging
 
 class Pipettin:
     toolhead: ToolHead
@@ -77,10 +78,14 @@ class Pipettin:
             gcmd.respond_info(f"New position saved: {last_position}")
 
     def write_new_coordinate(self, position_data):
-        with open(self.output_file, 'w+', encoding='utf-8') as file:
-            coordinates = json.load(file)
-            coordinates.append(position_data)
-            json.dump(coordinates, file, indent=4)
+        try:
+            with open(self.output_file, 'w+', encoding='utf-8') as file:
+                coordinates = json.load(file)
+                coordinates.append(position_data)
+                json.dump(coordinates, file, indent=4)
+        except Exception as e:
+            logging.error(f"Failed to save data: {coordinates}")
+            raise e
 
 def load_config(config):
     return Pipettin(config)
