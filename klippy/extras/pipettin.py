@@ -69,8 +69,8 @@ class Pipettin:
         # Save it to the file.
         try:
             self.write_new_coordinate(position_data)
-        except Exception:
-            raise gcmd.error(f"Failed to save position data: {position_data}")
+        except Exception as e:
+            raise gcmd.error(f"Failed to save position data '{position_data}' with error: {e}")
         else:
             # Respond.
             gcmd.respond_info(f"New position saved: {last_position}")
