@@ -68,10 +68,13 @@ class Pipettin:
         }
 
         # Save it to the file.
-        self.write_new_coordinate(position_data)
-
-        # Respond.
-        gcmd.respond_info(f"New position saved: {last_position}")
+        try:
+            self.write_new_coordinate(position_data)
+        except Exception:
+            gcmd.error(f"Failed to save position data: {position_data}")
+        else:
+            # Respond.
+            gcmd.respond_info(f"New position saved: {last_position}")
 
     def write_new_coordinate(self, position_data):
         with open(self.output_file, 'w+', encoding='utf-8') as file:
