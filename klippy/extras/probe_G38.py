@@ -276,10 +276,12 @@ class ProbeG38:
                 if axis in params:
                     v = float(params[axis])
                     if not self.absolute_coord:
-                        # value relative to position of last move
+                        # Value relative to position of last move.
+                        # Increment last position.
                         self.last_position[pos] += v
                     else:
-                        # value relative to base coordinate position
+                        # Absolute value, offset by base coordinate position.
+                        # Overwrite last position.
                         self.last_position[pos] = v + self.base_position[pos]
                     # NOTE: register which axes are being probed
                     probe_axes.append(axis.lower())  # Append "X", "Y", or "Z".
