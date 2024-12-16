@@ -100,26 +100,34 @@ class PrinterSkew:
         gcmd.respond_info("Calculated Skew: %.6f radians, %.2f degrees"
                           % (factor, math.degrees(factor)))
     cmd_SET_SKEW_help = "Set skew based on lengths of measured object"
-    def cmd_SET_SKEW(self, gcmd):
+    def cmd_SET_SKEW(self, gcmd, use_lengths=True):
         if gcmd.get_int("CLEAR", 0):
             self._update_skew(0., 0., 0.)
             return
         planes = ["XY", "XZ", "YZ"]
         for plane in planes:
-            lengths = gcmd.get(plane, None)
-            if lengths is not None:
-                try:
-                    lengths = lengths.strip().split(",", 2)
-                    lengths = [float(l.strip()) for l in lengths]
-                    if len(lengths) != 3:
-                        raise Exception
-                except Exception:
-                    raise gcmd.error(
-                        "skew_correction: improperly formatted entry for "
-                        "plane [%s]\n%s" % (plane, gcmd.get_commandline()))
-                factor = plane.lower() + '_factor'
-                # NOTE: Set new values of "self.xy_factor", "self.xz_factor", or "self.yz_factor".
-                setattr(self, factor, calc_skew_factor(*lengths))
+            if use_lengths:
+                # Calculate factors from lengths.
+                lengths = gcmd.get(plane, None)
+                if lengths is not None:
+                    try:
+                        lengths = lengths.strip().split(",", 2)
+                        lengths = [float(l.strip()) for l in lengths]
+                        if len(lengths) != 3:
+                            raise Exception
+                    except Exception:
+                        raise gcmd.error(
+                            "skew_correction: improperly formatted entry for "
+                            "plane [%s]\n%s" % (plane, gcmd.get_commandline()))
+                    factor = plane.lower() + '_factor'
+                    # NOTE: Set new values of "self.xy_factor", "self.xz_factor", or "self.yz_factor".
+                    setattr(self, factor, calc_skew_factor(*lengths))
+            else:
+                # Directly set the factors.
+                skew_factor = gcmd.get(plane, None)
+                if skew_factor is not None:
+                    factor = plane.lower() + '_factor'
+                    setattr(self, factor, skew_factor)
     cmd_SKEW_PROFILE_help = "Profile management for skew_correction"
     def cmd_SKEW_PROFILE(self, gcmd):
         if gcmd.get('LOAD', None) is not None:
