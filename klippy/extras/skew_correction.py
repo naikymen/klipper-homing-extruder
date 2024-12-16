@@ -8,6 +8,12 @@
 # Copyright (C) 2019  Eric Callahan <arksine.code@gmail.com>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
+# 
+# Usage documentation at: https://www.klipper3d.org/Skew_Correction.html
+# 
+# Better explanations at:
+# - https://docs.duet3d.com/en/User_manual/Tuning/Orthogonal_axis_compensation
+# - https://github.com/MarlinFirmware/Marlin/blob/bugfix-2.1.x/Marlin/Configuration.h#L2353
 
 import math
 
@@ -112,6 +118,7 @@ class PrinterSkew:
                         "skew_correction: improperly formatted entry for "
                         "plane [%s]\n%s" % (plane, gcmd.get_commandline()))
                 factor = plane.lower() + '_factor'
+                # NOTE: Set new values of "self.xy_factor", "self.xz_factor", or "self.yz_factor".
                 setattr(self, factor, calc_skew_factor(*lengths))
     cmd_SKEW_PROFILE_help = "Profile management for skew_correction"
     def cmd_SKEW_PROFILE(self, gcmd):
