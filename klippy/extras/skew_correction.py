@@ -45,6 +45,8 @@ class PrinterSkew:
                                desc=self.cmd_SET_SKEW_help)
         gcode.register_command('SKEW_PROFILE', self.cmd_SKEW_PROFILE,
                                desc=self.cmd_SKEW_PROFILE_help)
+        gcode.register_command('SET_SKEW_FACTORS', self.cmd_SET_SKEW_FACTORS,
+                               desc=self.cmd_SET_SKEW_FACTORS_help)
     def _handle_connect(self):
         gcode_move = self.printer.lookup_object('gcode_move')
         self.next_transform = gcode_move.set_move_transform(self, force=True)
@@ -128,6 +130,15 @@ class PrinterSkew:
                 if skew_factor is not None:
                     factor = plane.lower() + '_factor'
                     setattr(self, factor, skew_factor)
+    cmd_SET_SKEW_FACTORS_help = "Set skew factors directly"
+    def cmd_SET_SKEW_FACTORS(self, gcmd):
+        """Set the skew factors directly
+        To use this function you must first compute the factors manually.
+        More information at:
+        - https://docs.duet3d.com/en/User_manual/Tuning/Orthogonal_axis_compensation
+        - https://github.com/MarlinFirmware/Marlin/blob/bugfix-2.1.x/Marlin/Configuration.h#L2353
+        """
+        self.cmd_SET_SKEW(gcmd, use_lengths=False)
     cmd_SKEW_PROFILE_help = "Profile management for skew_correction"
     def cmd_SKEW_PROFILE(self, gcmd):
         if gcmd.get('LOAD', None) is not None:
