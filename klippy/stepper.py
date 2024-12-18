@@ -160,9 +160,10 @@ class MCU_stepper:
         # NOTE: This probably reads the position previously
         #       set by "set_position"/"itersolve_set_position"
         return ffi_lib.itersolve_get_commanded_pos(self._stepper_kinematics)
-    
-    def get_mcu_position(self):
-        mcu_pos_dist = self.get_commanded_position() + self._mcu_position_offset
+    def get_mcu_position(self, cmd_pos=None):
+        if cmd_pos is None:
+            cmd_pos = self.get_commanded_position()
+        mcu_pos_dist = cmd_pos + self._mcu_position_offset
         mcu_pos = mcu_pos_dist / self._step_dist
         # TODO: find out what "0.5" means:
         if mcu_pos >= 0.:

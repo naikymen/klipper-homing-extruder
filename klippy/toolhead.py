@@ -123,6 +123,7 @@ class Move:
         self.delta_v2 = 2.0 * move_d * self.accel
         self.max_smoothed_v2 = 0.
         self.smooth_delta_v2 = 2.0 * move_d * toolhead.max_accel_to_decel
+        self.next_junction_v2 = 999999999.9
 
     def limit_speed(self, speed, accel):
         """Limit the speed of the move, given a maximum velocity and acceleration.
@@ -136,7 +137,8 @@ class Move:
         self.accel = min(self.accel, accel)
         self.delta_v2 = 2.0 * self.move_d * self.accel
         self.smooth_delta_v2 = min(self.smooth_delta_v2, self.delta_v2)
-
+    def limit_next_junction_speed(self, speed):
+        self.next_junction_v2 = min(self.next_junction_v2, speed**2)
     def move_error(self, msg="Move out of range"):
         # TODO: check if the extruder axis is always passed to "self.end_pos".
         ep = self.end_pos
@@ -156,34 +158,32 @@ class Move:
         # Allow extruder to calculate its maximum junction
         # NOTE: Uses the "instant_corner_v" config parameter.
         extruder_v2 = self.toolhead.extruder.calc_junction(prev_move, self)
-
+        max_start_v2 = min(extruder_v2, self.max_cruise_v2,
+                           prev_move.max_cruise_v2, prev_move.next_junction_v2,
+                           prev_move.max_start_v2 + prev_move.delta_v2)
         # Find max velocity using "approximated centripetal velocity"
         axes_r = self.axes_r
         prev_axes_r = prev_move.axes_r
         junction_cos_theta = -sum([ axes_r[i] * prev_axes_r[i] for i in range(len(axes_r[:-1])) ])  # NOTE: axes_r comes from axes_d, used is to replace "self.axis_count".
-        if junction_cos_theta > 0.999999:
-            return
-        junction_cos_theta = max(junction_cos_theta, -0.999999)
-        sin_theta_d2 = math.sqrt(0.5*(1.0-junction_cos_theta))
-        R_jd = sin_theta_d2 / (1. - sin_theta_d2)
-
-        # Approximated circle must contact moves no further away than mid-move
-        tan_theta_d2 = sin_theta_d2 / math.sqrt(0.5*(1.0+junction_cos_theta))
-        move_centripetal_v2 = .5 * self.move_d * tan_theta_d2 * self.accel
-        prev_move_centripetal_v2 = (.5 * prev_move.move_d * tan_theta_d2
-                                    * prev_move.accel)
+        sin_theta_d2 = math.sqrt(max(0.5*(1.0-junction_cos_theta), 0.))
+        cos_theta_d2 = math.sqrt(max(0.5*(1.0+junction_cos_theta), 0.))
+        one_minus_sin_theta_d2 = 1. - sin_theta_d2
+        if one_minus_sin_theta_d2 > 0. and cos_theta_d2 > 0.:
+            R_jd = sin_theta_d2 / one_minus_sin_theta_d2
+            move_jd_v2 = R_jd * self.junction_deviation * self.accel
+            pmove_jd_v2 = R_jd * prev_move.junction_deviation * prev_move.accel
+    
+        # Approximated circle must contact moves no further than mid-move
+            #   centripetal_v2 = .5 * self.move_d * self.accel * tan_theta_d2
+            quarter_tan_theta_d2 = .25 * sin_theta_d2 / cos_theta_d2
+            move_centripetal_v2 = self.delta_v2 * quarter_tan_theta_d2
+            pmove_centripetal_v2 = prev_move.delta_v2 * quarter_tan_theta_d2
+            max_start_v2 = min(max_start_v2, move_jd_v2, pmove_jd_v2,
+                               move_centripetal_v2, pmove_centripetal_v2)
         # Apply limits
-        self.max_start_v2 = min(
-            R_jd * self.junction_deviation * self.accel,
-            R_jd * prev_move.junction_deviation * prev_move.accel,
-            move_centripetal_v2, prev_move_centripetal_v2,
-            extruder_v2, self.max_cruise_v2, prev_move.max_cruise_v2,
-            prev_move.max_start_v2 + prev_move.delta_v2)
-        self.max_smoothed_v2 = min(self.max_start_v2,
-                                   prev_move.max_smoothed_v2 + prev_move.smooth_delta_v2)
-
-        logging.info(f"Move calc_junction: function end. Final max_start_v2: {self.max_start_v2}")
-
+        self.max_start_v2 = max_start_v2
+        self.max_smoothed_v2 = min(
+            max_start_v2, prev_move.max_smoothed_v2 + prev_move.smooth_delta_v2)
     def set_junction(self, start_v2, cruise_v2, end_v2):
         """Move.set_junction() implements the "trapezoid generator" on a move.
 
@@ -1202,6 +1202,10 @@ class ToolHead:
             # TODO: the "homing_axes" parameter is not used rait nau.
             extruder.set_position(newpos_e, homing_axes, self.print_time)
 
+    def limit_next_junction_speed(self, speed):
+        last_move = self.lookahead.get_last()
+        if last_move is not None:
+            last_move.limit_next_junction_speed(speed)
     def move(self, newpos, speed):
         """ToolHead.move() creates a Move() object with the parameters of the move (in cartesian space and in units of seconds and millimeters).
 
