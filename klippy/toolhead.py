@@ -1378,6 +1378,21 @@ class ToolHead:
             #       before "self.print_time >= next_print_time" by "MOVE_BATCH_TIME".
 
     def drip_move(self, newpos, speed, drip_completion):
+        """
+        Drip move limits how much of the move is flushed to itersolve and step compress
+
+        When in drip move, the move(there's only one) gets put in trapq and then flushed in short chunks
+        until it has fully executed or the condition is triggered. That happens inside _update_drip_move_time.
+
+        It is made this way because when endstop moving we don't want to be committing potentially many seconds
+        of movement since we assume the endstop will trigger soon. We don't want to advance next print time
+        because the next move will be scheduled at that time.
+
+        For example, if you were to do a homing move that would take 10 seconds max but endstop triggers after 2
+        you don't want to wait around until the move would normally have ended before you can start the next move.
+
+        Info by dalegaard. Thanks!
+        """
         self.dwell(self.kin_flush_delay)
         # Transition from "NeedPrime"/"Priming"/main state to "Drip" state
         self.lookahead.flush()
