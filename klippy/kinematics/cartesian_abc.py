@@ -171,10 +171,6 @@ class CartKinematicsABC(CartKinematics):
             #       or to the list in the new TrapQ...
             #       Using the toolhead for now.
         
-        # Register a handler for turning off the steppers.
-        self.printer.register_event_handler("stepper_enable:motor_off",
-                                            self._motor_off)
-        
         # NOTE: Get "max_velocity" and "max_accel" from the toolhead's config.
         #       Used below as default values.
         max_velocity, max_accel = toolhead.get_max_velocity()
@@ -300,9 +296,6 @@ class CartKinematicsABC(CartKinematics):
                 self.dc_module.home(homing_state)
             else:
                 self.home_axis(homing_state, axis, self.rails[toolhead.axes_to_xyz(axis)])
-    
-    def _motor_off(self, print_time):
-        self.clear_homing_state((0, 1, 2))
     
     def _check_endstops(self, move):
         logging.info(f"cartesian_abc._check_endstops: triggered on {self.axis_names}/{self.axis} move.")

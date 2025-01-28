@@ -117,10 +117,6 @@ class CoreXYKinematicsABC:
             #       the "self.step_generators" list in the toolhead,
             #       or to the list in the new TrapQ...
             #       Using the toolhead for now.
-
-        # Register a handler for turning off the steppers.
-        self.printer.register_event_handler("stepper_enable:motor_off",
-                                            self._motor_off)
         
         # NOTE: Get "max_velocity" and "max_accel" from the toolhead's config.
         #       Used below as default values.
@@ -197,9 +193,6 @@ class CoreXYKinematicsABC:
             forcepos[axis] += 1.5 * (position_max - hi.position_endstop)
         # Perform homing
         homing_state.home_rails([rail], forcepos, homepos)
-    
-    def _motor_off(self, print_time):
-        self.clear_homing_state((0, 1, 2))
     
     def _check_endstops(self, move):
         end_pos = move.end_pos
