@@ -155,7 +155,7 @@ class ForceMove:
 
         # NOTE: Support new "CLEAR" option.
         clear = gcmd.get('CLEAR', '').upper()
-        for axes in toolhead.axis_triplets:
+        for axes in list(toolhead.kinematics):
             # Iterate over axis sets (XYZ, ABC, etc.).
             clear_axes = [axes.index(a) for a in axes if a in clear]
             toolhead.get_kinematics(axes=axes).clear_homing_state(clear_axes)
