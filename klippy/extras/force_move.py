@@ -153,6 +153,12 @@ class ForceMove:
         logging.info(f"SET_KINEMATIC_POSITION: setting position with curpos={curpos} scanning axis_map={toolhead.axis_map} for commandline={gcmd.get_commandline()}")
         toolhead.set_position(curpos, homing_axes=tuple(homing_axes))
 
+        # TODO: Adapt new "CLEAR" option.
+        # clear = gcmd.get('CLEAR', '').upper()
+        # axes = ['X', 'Y', 'Z']
+        # clear_axes = [axes.index(a) for a in axes if a in clear]
+        # toolhead.get_kinematics().clear_homing_state(clear_axes)
+
         # Set position on extra toolheads
         # TODO: Must update all of this to accound for the new position vector 
         #       (i.e. always full length, using -1 for the extruder).
