@@ -131,7 +131,9 @@ class CoreXYKinematicsABC:
                                            above=0., maxval=max_accel)
         
         # Setup boundary checks
-        self.reset_limits()
+        self.limits = [(1.0, -1.0)] * 3
+        self.clear_homing_state((0, 1, 2))
+
         ranges = [r.get_range() for r in self.rails]
         # NOTE: Here I've swapped list expansion for dictionary expansion, and omitted "e",
         #       which will default to "None", and was previously forced to "0.0".
@@ -141,16 +143,6 @@ class CoreXYKinematicsABC:
             ranges_dict[a] = r
         self.axes_min: namedtuple = toolhead.Coord(**{k: l for k, (l, h) in ranges_dict.items()})
         self.axes_max: namedtuple = toolhead.Coord(**{k: h for k, (l, h) in ranges_dict.items()})
-    
-    def reset_limits(self):
-        # self.limits = [(1.0, -1.0)] * len(self.axis_config)
-        # TODO: Should this have length < 3 if less axes are configured, or not?
-        #       CartKinematics methods like "get_status" will expect length 3 limits.
-        #       See "get_status" for more details.
-        # NOTE: Using length 3
-        self.limits = [(1.0, -1.0)] * 3
-        # NOTE: I've got all of the (internal) calls covered.
-        #       There may be other uses of the "limits" attribute elsewhere.
     
     def get_steppers(self):
         return [s for rail in self.rails for s in rail.get_steppers()]
@@ -180,13 +172,11 @@ class CoreXYKinematicsABC:
             if i in homing_axes:
                 self.limits[i] = rail.get_range()
     
-    def note_z_not_homed(self):
-        # Helper for Safe Z Home
-        # NOTE: This will surely not cause a crash, since for now I'd
-        #       require a CoreXY Kinematic to be setup with a Z axis.
-        if "Z" in self.axis_names:
-            # Helper for Safe Z Home
-            self.limits[self.axis_map["Z"]] = (1.0, -1.0)
+    def clear_homing_state(self, axes):
+        # TODO: Check if I need to use a mapping key here (e.g. self.axis_map["Z"]).
+        for i, _ in enumerate(self.limits):
+            if i in axes:
+                self.limits[i] = (1.0, -1.0)
 
     def home(self, homing_state):
         # Each axis is homed independently and in order
@@ -209,7 +199,7 @@ class CoreXYKinematicsABC:
         homing_state.home_rails([rail], forcepos, homepos)
     
     def _motor_off(self, print_time):
-        self.reset_limits()
+        self.clear_homing_state((0, 1, 2))
     
     def _check_endstops(self, move):
         end_pos = move.end_pos
