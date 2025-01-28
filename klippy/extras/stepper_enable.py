@@ -95,7 +95,8 @@ class PrinterStepperEnable:
         for el in self.enable_lines.values():
             el.motor_disable(print_time)
         for axes in list(toolhead.kinematics):
-            toolhead.get_kinematics(axes=axes).clear_homing_state((0, 1, 2))
+            # TODO: Adapt to new string-based axis IDs.
+            toolhead.get_kinematics(axes=axes).clear_homing_state("xyz")
         self.printer.send_event("stepper_enable:motor_off", print_time)
         toolhead.dwell(DISABLE_STALL_TIME)
     def motor_debug_enable(self, stepper, enable):

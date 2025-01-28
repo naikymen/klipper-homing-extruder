@@ -155,10 +155,11 @@ class ForceMove:
         toolhead.set_position(curpos, homing_axes="xyz")
 
         # NOTE: Support new "CLEAR" option.
-        clear = gcmd.get('CLEAR', '').upper()
+        clear = gcmd.get('CLEAR', '').lower()
         for axes in list(toolhead.kinematics):
             # Iterate over axis sets (XYZ, ABC, etc.).
-            clear_axes = [axes.index(a) for a in axes if a in clear]
+            # TODO: Adapt to new "string-based" axis IDs.
+            clear_axes = "".join([a for a in "xyz" if a in clear])
             toolhead.get_kinematics(axes=axes).clear_homing_state(clear_axes)
 
 def load_config(config):

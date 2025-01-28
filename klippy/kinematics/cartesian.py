@@ -112,10 +112,10 @@ class CartKinematics:
             #       now on.
             logging.info(f"CartKinematics: setting limits={rail.get_range()} on stepper: {rail.get_name()}")
             self.limits[axis] = rail.get_range()
-    def clear_homing_state(self, axes):
-        for i, _ in enumerate(self.limits):
-            if i in axes:
-                self.limits[i] = (1.0, -1.0)
+    def clear_homing_state(self, clear_axes):
+        for axis, axis_name in enumerate("xyz"):
+            if axis_name in clear_axes:
+                self.limits[axis] = (1.0, -1.0)
     def home_axis(self, homing_state, axis, rail):
         # NOTE: "homing_state" is an instance of the "Homing" class.
         
