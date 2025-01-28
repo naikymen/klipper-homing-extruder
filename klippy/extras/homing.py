@@ -484,10 +484,12 @@ class Homing:
 
         # Alter kinematics class to think printer is at forcepos
         # NOTE: Get the axis IDs of each non-null axis in forcepos.
-        homing_axes = [axis for axis in range(self.toolhead.pos_length-1) if forcepos[axis] is not None]
+        force_axes = [axis for axis in range(self.toolhead.pos_length-1) if forcepos[axis] is not None]
         # NOTE: fill each "None" position values with the
         #       current position (from toolhead.get_position)
         #       of the corresponding axis.
+        # TODO: Adapt this to new "name based" IDs for homing axes.
+        homing_axes = "".join(["xyz"[i] for i in force_axes])
         startpos = self._fill_coord(forcepos)
         homepos = self._fill_coord(movepos)
         # NOTE: esto usa "trapq_set_position" sobre el trapq del XYZ.
@@ -577,7 +579,7 @@ class Homing:
             #             for s in kin.get_steppers()}
             # newpos = kin.calc_position(kin_spos)
 
-            for axis in homing_axes:
+            for axis in force_axes:
                 homepos[axis] = newpos[axis]
             self.toolhead.set_position(homepos)
 

@@ -151,7 +151,8 @@ class ForceMove:
         # Set the position. Those axes in the homing_axes list will
         # be set as "homed" by downstream methods (specially kinematics).
         logging.info(f"SET_KINEMATIC_POSITION: setting position with curpos={curpos} scanning axis_map={toolhead.axis_map} for commandline={gcmd.get_commandline()}")
-        toolhead.set_position(curpos, homing_axes=tuple(homing_axes))
+        # TODO: Adapt to new "string-based" axis IDs.
+        toolhead.set_position(curpos, homing_axes="xyz")
 
         # NOTE: Support new "CLEAR" option.
         clear = gcmd.get('CLEAR', '').upper()

@@ -101,7 +101,8 @@ class CartKinematics:
             rail.set_position(newpos)
 
         # NOTE: set limits if the axis is (being) homed.
-        for axis in homing_axes:
+        for axis_name in homing_axes:
+            axis = "xyz".index(axis_name)
             if self.dc_module and axis == self.dc_module.axis:
                 rail = self.dc_module.get_primary_rail().get_rail()
             else:

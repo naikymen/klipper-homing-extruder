@@ -1097,7 +1097,8 @@ class ToolHead:
             coords[self.axis_map[k]] = v
         return coords
 
-    def set_position(self, newpos, homing_axes=()):
+    def set_position(self, newpos, homing_axes=""):
+        # TODO: Adapt to new "string-based" axis IDs.
         logging.info(f"toolhead.set_position: setting newpos={newpos} and homing_axes={homing_axes}")
         self.flush_step_generation()
 
