@@ -153,11 +153,12 @@ class ForceMove:
         logging.info(f"SET_KINEMATIC_POSITION: setting position with curpos={curpos} scanning axis_map={toolhead.axis_map} for commandline={gcmd.get_commandline()}")
         toolhead.set_position(curpos, homing_axes=tuple(homing_axes))
 
-        # TODO: Adapt new "CLEAR" option.
-        # clear = gcmd.get('CLEAR', '').upper()
-        # axes = ['X', 'Y', 'Z']
-        # clear_axes = [axes.index(a) for a in axes if a in clear]
-        # toolhead.get_kinematics().clear_homing_state(clear_axes)
+        # NOTE: Support new "CLEAR" option.
+        clear = gcmd.get('CLEAR', '').upper()
+        for axes in toolhead.axis_triplets:
+            # Iterate over axis sets (XYZ, ABC, etc.).
+            clear_axes = [axes.index(a) for a in axes if a in clear]
+            toolhead.get_kinematics(axes=axes).clear_homing_state(clear_axes)
 
 def load_config(config):
     return ForceMove(config)
