@@ -57,19 +57,21 @@ class StepperPosition:
 # Implementation of homing/probing moves
 class HomingMove:
     def __init__(self, printer, endstops, toolhead=None):
+        """
+        The "HomingMove" class downstream methods use the
+        following methods from a provided "toolhead" object:
+            - flush_step_generation
+            - get_kinematics:           returning a "kin" object with methods:
+                - kin.get_steppers:     returning a list of stepper objects.
+                - kin.calc_position:    returning ???
+            - get_position:             returning "thpos" (toolhead position)
+            - get_last_move_time:       returning "print_time" (and later "move_end_print_time")
+            - dwell
+            - drip_move
+            - set_position
+        """
         self.printer = printer
         self.endstops = endstops
-        # NOTE: The "HomingMove" class downstream methods use the
-        #       following methods from a provided "toolhead" object:
-        #       - flush_step_generation
-        #       - get_kinematics:           returning a "kin" object with methods:
-        #           - kin.get_steppers:     returning a list of stepper objects.
-        #           - kin.calc_position:    returning ???
-        #       - get_position:             returning "thpos" (toolhead position)
-        #       - get_last_move_time:       returning "print_time" (and later "move_end_print_time")
-        #       - dwell
-        #       - drip_move
-        #       - set_position
         if toolhead is None:
             toolhead = printer.lookup_object('toolhead')
         self.toolhead: ToolHead = toolhead
@@ -98,11 +100,13 @@ class HomingMove:
         return move_t / max_steps
 
     def calc_toolhead_pos(self, kin_spos, offsets):
-        # NOTE: the "kin_spos" received here has values from the
-        #       "halting" position, before "oversteps" are corrected.
-        #       For example:
-        #           calc_toolhead_pos input: kin_spos={'extruder1': 0.0} offsets={'extruder1': -2273}
-        # NOTE: "offsets" are probably in "step" units.
+        """Calculate the "actual" halting position in distance units
+        The "kin_spos" received here has values from the "halting" position, before "oversteps" are corrected.
+        For example:
+            calc_toolhead_pos input: kin_spos={'extruder1': 0.0} offsets={'extruder1': -2273}
+        
+        The "offsets" are probably in "step" units..
+        """
         kin_spos = dict(kin_spos)
 
         # NOTE: log input for reference
@@ -159,8 +163,6 @@ class HomingMove:
         else:
             result += [thpos[-1]]
 
-        # NOTE: Log output for reference, example:
-        #       calc_toolhead_pos output=[-1.420625, 0.0, 0.0, 0.0]
         logging.info(f"calc_toolhead_pos: result={str(result)}")
 
         # NOTE: This "result" is used to override "haltpos" below, which
@@ -314,16 +316,11 @@ class HomingMove:
                 #       uses the set_position method of the rails/steppers).
                 #       It ends by emittig a "toolhead:set_position" event.
                 self.toolhead.set_position(movepos)
-                # NOTE: from the "extruder_home" logs:
-                #           set_position: input:  [0.0, 0.0, 0.0, -110.0] homing_axes=()
-                #           set_position: output: [0.0, 0.0, 0.0, 0.0]  (i.e. passed to toolhead.set_position).
 
                 # NOTE: Get the stepper "halt_kin_spos" (halting positions).
                 halt_kin_spos = self.calc_halt_kin_spos(extruder_steppers)
 
-                # NOTE: Calculate the "actual" halting position in distance units. Examples:
-                #       calc_toolhead_pos input: kin_spos={'extruder1': 0.0} offsets={'extruder1': -2273}
-                #       calc_toolhead_pos output: [-1.420625, 0.0, 0.0, 0.0]
+                # NOTE: Calculate the "actual" halting position in distance units.
                 haltpos = self.calc_toolhead_pos(kin_spos=halt_kin_spos,
                                                  offsets=over_steps)
 
@@ -496,8 +493,6 @@ class Homing:
         # Perform second home
         if hi.retract_dist:
             # Retract
-            # startpos=[0.0, 0.0, 0.0, 468.0, 0.0, 0.0, 0.0]
-            # homepos=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
             startpos = self._fill_coord(forcepos)
             homepos = self._fill_coord(movepos)
 
@@ -551,6 +546,7 @@ class Homing:
                 #       object, as loaded from a module in the "kinematics/" directory,
                 #       during the class's __init__.
                 kin: CartKinematicsABC = self.toolhead.kinematics[axes]
+                # Apply any homing offsets
                 # NOTE: this step calls the "get_steppers" method on the provided
                 #       kinematics, which returns a dict of "MCU_stepper" objects,
                 #       with names as "stepper_x", "stepper_y", etc.
@@ -559,19 +555,11 @@ class Homing:
                 # NOTE: Build the "newpos" list with elements from each kinematic.
                 newpos.extend(kin.calc_position(kin_spos))
 
-            # Apply any homing offsets
-            # TODO: replaced the following with the above. Must test if it worked.
-            # kin: CartKinematicsABC = self.toolhead.get_kinematics()
-            # homepos = self.toolhead.get_position()
-            # kin_spos = {s.get_name(): (s.get_commanded_position() + self.adjust_pos.get(s.get_name(), 0.))
-            #             for s in kin.get_steppers()}
-            # newpos = kin.calc_position(kin_spos)
-
             for axis in homing_axes:
                 homepos[axis] = newpos[axis]
             self.toolhead.set_position(homepos)
 
-        logging.info(f"homing.home_rails: finalized.")
+        logging.info("homing.home_rails: finalized.")
 
 class PrinterHoming:
     def __init__(self, config):
@@ -692,16 +680,6 @@ class PrinterHoming:
                 homing_axes = [a for a in axes if a in kin.axis]
                 logging.info(f"PrinterHoming.cmd_G28: homing {homing_axes} axes of the {kin.axis} kinematic.")
                 self.home_axes(kin=kin, homing_axes=homing_axes)
-
-        # # NOTE: XYZ homing.
-        # kin = toolhead.get_kinematics()
-        # if any(i in kin.axis for i in axes):
-        #     self.home_axes(kin=kin, homing_axes=[a for a in axes if a in kin.axis])
-
-        # # NOTE: ABC homing.
-        # kin_abc = toolhead.get_kinematics_abc()
-        # if any(i in kin_abc.axis for i in axes) and kin_abc is not None:
-        #     self.home_axes(kin=kin_abc, homing_axes=[a for a in axes if a in kin_abc.axis])
 
     def home_axes(self, kin, homing_axes):
         """Home the requested axis on the specified kinematics.

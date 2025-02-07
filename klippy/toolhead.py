@@ -359,7 +359,7 @@ class LookAheadQueue:
         Args:
             move (Move): A new Move object.
         """
-        logging.info(f"MoveQueue.add_move: adding move.")
+        logging.info("MoveQueue.add_move: adding move.")
         self.queue.append(move)
 
         # NOTE: The move queue is not flushed automatically when the
@@ -731,13 +731,6 @@ class ToolHead:
         free_time = sg_flush_time - self.kin_flush_delay
         # NOTE: "free_time" is smaller than "sg_flush_time" by "kin_flush_delay",
         #       which is defined from "SDS_CHECK_TIME".
-        # TODO: remove old (pre 6-axis) stuff.
-        # # NOTE: Update move times on the toolhead, meaning:
-        # #           "Expire any moves older than `free_time` from
-        # #           the trapezoid velocity queue" (see trapq.c).
-        # self.trapq_finalize_moves(self.trapq, free_time)
-        # # NOTE: Setup "self.trapq_finalize_moves" on the ABC trapq as well.
-        # self.trapq_finalize_moves(self.abc_trapq, free_time)
         # NOTE: Update move times on the extruder by calling
         #       "trapq_finalize_moves" in PrinterExtruder.
         # NOTE: Update move times on the toolhead's trapqs, meaning:
@@ -1440,27 +1433,16 @@ class ToolHead:
                 # Iterate over ["XYZ", "ABC"].
                 kin = self.kinematics[axes]
                 logging.info(f"ToolHead.drip_move calling trapq_finalize_moves on axes={axes} free_time=self.reactor.NEVER ({self.reactor.NEVER})")
+                # NOTE: This calls a function in "trapq.c", described as:
+                #       - Expire any moves older than `print_time` from the trapezoid velocity queue
+                #       - Flush all moves from trapq (in the case of print_time=NEVER_TIME)
+                #       I am guessing here that "older" means "with a smaller timestamp",
+                #       otherwise it does not make sense.
                 self.trapq_finalize_moves(kin.trapq, self.reactor.NEVER, 0)
 
-            # # NOTE: This calls a function in "trapq.c", described as:
-            # #       - Expire any moves older than `print_time` from the trapezoid velocity queue
-            # #       - Flush all moves from trapq (in the case of print_time=NEVER_TIME)
-            # #       I am guessing here that "older" means "with a smaller timestamp",
-            # #       otherwise it does not make sense.
-            # self.trapq_finalize_moves(self.trapq, self.reactor.NEVER)
-
-            # # NOTE: call trapq_finalize_moves on the ABC exes too.
-            # self.trapq_finalize_moves(self.abc_trapq, self.reactor.NEVER)
-
-            # NOTE: the above may be specific to toolhead and not to extruder...
-            #       Add an "event" that calls this same method on the
-            #       extruder trapq as well.
-            #self.printer.send_event("toolhead:trapq_finalize_extruder_drip_moves",
-            #                        self.reactor.NEVER, self.extruder.name)
-            # NOTE: Alternatively, use the "update_move_time" of the extruder object.
+            # NOTE: Use the "update_move_time" of the extruder object.
             #       This function calls "trapq_finalize_moves(self.trapq, flush_time)"
             #       on the extruder's trapq.
-            # TODO: Whether it will mess with XYZ-only homing or not remains to be tested.
             self.extruder.update_move_time(flush_time=self.reactor.NEVER, clear_history_time=0)
 
         # Exit "Drip" state
